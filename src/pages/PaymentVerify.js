@@ -10,7 +10,7 @@ const PaymentVerify = () => {
   const reference = searchParams.get('reference');
   const hasTriggeredRef = useRef(false);
 
-  const { loading, error, paymentVerified, currentOrder } = useSelector((state) => state.orders);
+  const { error, paymentVerified, currentOrder } = useSelector((state) => state.orders);
 
   useEffect(() => {
     if (reference && !hasTriggeredRef.current) {

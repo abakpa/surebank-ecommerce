@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   updateCartItemRequest,
@@ -13,7 +13,6 @@ import { getStates, getLGAs, getTowns } from '../data/nigerianLocations';
 
 const Cart = () => {
   const dispatch = useDispatch();
-  const navigate = useNavigate();
   const { items, totalAmount, totalItems, loading } = useSelector((state) => state.cart);
   const { isAuthenticated, customer, loading: authLoading, error: authError } = useSelector((state) => state.auth);
   const { paymentLoading } = useSelector((state) => state.orders);
@@ -225,7 +224,7 @@ const Cart = () => {
   }, [
     isAuthenticated, customerEmail, deliveryMethod, deliveryAddress, addressState,
     addressLGA, addressTown, selectedPickupLocation, customer, paymentFrequency,
-    duration, dispatch, navigate
+    duration, dispatch
   ]);
 
   // Handle outright payment (Buy Now, Once)

@@ -4,12 +4,9 @@ import { useDispatch, useSelector } from 'react-redux';
 import { fetchProductByIdRequest, clearProduct } from '../redux/slices/productSlice';
 import { addToCartRequest } from '../redux/slices/cartSlice';
 import { loginRequest, registerRequest, clearError } from '../redux/slices/authSlice';
-import { initializePaymentRequest, verifyPaymentRequest, clearPaymentState } from '../redux/slices/orderSlice';
+import { initializePaymentRequest, clearPaymentState } from '../redux/slices/orderSlice';
 import { API_URL } from '../utils/api';
 import { getStates, getLGAs, getTowns } from '../data/nigerianLocations';
-
-// Paystack public key
-const PAYSTACK_PUBLIC_KEY = 'pk_test_2c1249893ac50ebc7c1e9b8727c4a7c21240248f';
 
 const ProductDetail = () => {
   const dispatch = useDispatch();
@@ -304,7 +301,7 @@ const ProductDetail = () => {
     }));
   }, [
     isAuthenticated, buyNowEmail, deliveryMethod, buyNowAddress, buyNowState,
-    buyNowLGA, buyNowTown, selectedPickupLocation, customer, product, dispatch, navigate
+    buyNowLGA, buyNowTown, selectedPickupLocation, customer, product, dispatch
   ]);
 
   // Load Paystack script
@@ -353,9 +350,6 @@ const ProductDetail = () => {
     setProcessingPayment(true);
     setPaymentErrorMessage('');
 
-    // Calculate first installment amount
-    const installmentAmount = Math.ceil(product.price / parseInt(duration));
-
     // Initialize payment request - include productId so backend adds to cart
     const paymentData = {
       paymentType: 'installment',
@@ -393,7 +387,7 @@ const ProductDetail = () => {
     }));
   }, [
     isAuthenticated, customerEmail, customer, product, duration,
-    paymentFrequency, deliveryAddress, selectedLGA, selectedState, dispatch, navigate
+    paymentFrequency, deliveryAddress, selectedLGA, selectedState, dispatch, navigate, signupForm.phone
   ]);
 
   const getCategoryName = (categoryId) => {

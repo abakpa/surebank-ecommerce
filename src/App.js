@@ -7,6 +7,7 @@ import { fetchCategoriesRequest } from './redux/slices/productSlice';
 // Layout
 import Header from './components/Header';
 import Footer from './components/Footer';
+import PwaInstallPrompt from './components/PwaInstallPrompt';
 
 // Pages
 import Home from './pages/Home';
@@ -33,6 +34,7 @@ const Layout = ({ children }) => {
 
   return (
     <div className="min-h-screen flex flex-col">
+      <PwaInstallPrompt />
       <Header />
       <main className="flex-1 bg-gray-50">{children}</main>
       <Footer />
