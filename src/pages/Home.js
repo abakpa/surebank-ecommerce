@@ -2,8 +2,8 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchFeaturedProductsRequest, fetchCategoriesRequest, fetchProductsRequest } from '../redux/slices/productSlice';
-import { API_URL } from '../utils/api';
 import ProductCard from '../components/ProductCard';
+import { PRODUCT_FALLBACK_IMAGE, resolveImageUrl } from '../utils/image';
 
 const heroSlides = [
   {
@@ -48,6 +48,7 @@ const Home = () => {
   const [filters, setFilters] = useState({
     search: '',
     categoryId: '',
+    subCategoryId: '',
   });
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
   const categoryMenuRef = useRef(null);
@@ -68,21 +69,29 @@ const Home = () => {
 
   const handleFilterChange = (event) => {
     const { name, value } = event.target;
-    setFilters((prev) => ({ ...prev, [name]: value }));
+    setFilters((prev) => ({
+      ...prev,
+      [name]: value,
+      ...(name === 'categoryId' ? { subCategoryId: '' } : {}),
+    }));
   };
 
   const clearFilters = () => {
     setFilters({
       search: '',
       categoryId: '',
+      subCategoryId: '',
     });
     setCategoryMenuOpen(false);
   };
 
   const selectedCategory = categories.find((category) => category._id === filters.categoryId);
+  const selectedSubCategory = selectedCategory?.subcategories?.find(
+    (subCategory) => subCategory._id === filters.subCategoryId
+  );
 
-  const handleCategorySelect = (categoryId) => {
-    setFilters((prev) => ({ ...prev, categoryId }));
+  const handleCategorySelect = (categoryId, subCategoryId = '') => {
+    setFilters((prev) => ({ ...prev, categoryId, subCategoryId }));
     setCategoryMenuOpen(false);
   };
 
@@ -96,6 +105,7 @@ const Home = () => {
 
     if (filters.search) queryFilters.search = filters.search;
     if (filters.categoryId) queryFilters.categoryId = filters.categoryId;
+    if (filters.subCategoryId) queryFilters.subCategoryId = filters.subCategoryId;
 
     dispatch(fetchProductsRequest(queryFilters));
   }, [dispatch, filters]);
@@ -300,7 +310,11 @@ const Home = () => {
                   className="flex w-full items-center justify-between rounded-lg border border-gray-200 bg-white px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-700 outline-none transition hover:border-emerald-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
                 >
                   <span className="truncate">
-                    {selectedCategory ? selectedCategory.name : 'All Categories'}
+                    {selectedSubCategory
+                      ? `${selectedCategory?.name} / ${selectedSubCategory.name}`
+                      : selectedCategory
+                        ? selectedCategory.name
+                        : 'All Categories'}
                   </span>
                   <svg
                     className={`h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0 transition-transform ${categoryMenuOpen ? 'rotate-180' : ''}`}
@@ -316,7 +330,7 @@ const Home = () => {
                   <div className="absolute left-0 right-0 top-full z-20 mt-1 sm:mt-2 max-h-56 sm:max-h-72 overflow-y-auto rounded-xl border border-gray-200 bg-white py-1 sm:py-2 shadow-xl">
                     <button
                       type="button"
-                      onClick={() => handleCategorySelect('')}
+                      onClick={() => handleCategorySelect('', '')}
                       className={`block w-full px-3 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm transition hover:bg-emerald-50 hover:text-emerald-700 ${
                         !filters.categoryId ? 'bg-emerald-50 text-emerald-700' : 'text-gray-700'
                       }`}
@@ -324,16 +338,37 @@ const Home = () => {
                       All Categories
                     </button>
                     {categories.map((category) => (
-                      <button
-                        key={category._id}
-                        type="button"
-                        onClick={() => handleCategorySelect(category._id)}
-                        className={`block w-full px-3 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm transition hover:bg-emerald-50 hover:text-emerald-700 ${
-                          filters.categoryId === category._id ? 'bg-emerald-50 text-emerald-700' : 'text-gray-700'
-                        }`}
-                      >
-                        {category.name}
-                      </button>
+                      <div key={category._id} className="border-t border-gray-100 first:border-t-0">
+                        <button
+                          type="button"
+                          onClick={() => handleCategorySelect(category._id, '')}
+                          className={`block w-full px-3 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium transition hover:bg-emerald-50 hover:text-emerald-700 ${
+                            filters.categoryId === category._id && !filters.subCategoryId
+                              ? 'bg-emerald-50 text-emerald-700'
+                              : 'text-gray-700'
+                          }`}
+                        >
+                          {category.name}
+                        </button>
+                        {(category.subcategories || []).length > 0 && (
+                          <div className="pb-2">
+                            {category.subcategories.map((subCategory) => (
+                              <button
+                                key={subCategory._id}
+                                type="button"
+                                onClick={() => handleCategorySelect(category._id, subCategory._id)}
+                                className={`block w-full px-6 sm:px-7 py-1.5 sm:py-2 text-left text-xs sm:text-sm transition hover:bg-emerald-50 hover:text-emerald-700 ${
+                                  filters.subCategoryId === subCategory._id
+                                    ? 'bg-emerald-50 text-emerald-700'
+                                    : 'text-gray-500'
+                                }`}
+                              >
+                                {subCategory.name}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </div>
                 )}
@@ -449,7 +484,7 @@ const Home = () => {
                         {featuredProducts.slice(0, 3).map((product, idx) => (
                           <div key={product._id} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
                             <img
-                              src={product.images?.[0] ? `${API_URL}${product.images[0]}` : 'https://via.placeholder.com/50'}
+                              src={product.images?.[0] ? resolveImageUrl(product.images[0]) : PRODUCT_FALLBACK_IMAGE}
                               alt={product.name}
                               className="w-12 h-12 object-cover rounded-lg"
                             />

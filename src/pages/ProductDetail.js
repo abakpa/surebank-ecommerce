@@ -5,8 +5,8 @@ import { fetchProductByIdRequest, clearProduct } from '../redux/slices/productSl
 import { addToCartRequest } from '../redux/slices/cartSlice';
 import { loginRequest, registerRequest, clearError } from '../redux/slices/authSlice';
 import { initializePaymentRequest, clearPaymentState } from '../redux/slices/orderSlice';
-import { API_URL } from '../utils/api';
 import { getStates, getLGAs, getTowns } from '../data/nigerianLocations';
+import { handleImageFallback, PRODUCT_FALLBACK_IMAGE, resolveImageUrl } from '../utils/image';
 
 const ProductDetail = () => {
   const dispatch = useDispatch();
@@ -432,8 +432,8 @@ const ProductDetail = () => {
   }
 
   const images = product.images && product.images.length > 0
-    ? product.images.map((img) => `${API_URL}${img}`)
-    : ['https://via.placeholder.com/500x500?text=No+Image'];
+    ? product.images.map((img) => resolveImageUrl(img))
+    : [PRODUCT_FALLBACK_IMAGE];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -461,9 +461,7 @@ const ProductDetail = () => {
                 src={images[selectedImage]}
                 alt={product.name}
                 className="max-w-full max-h-full object-contain"
-                onError={(e) => {
-                  e.target.src = 'https://via.placeholder.com/500x500?text=No+Image';
-                }}
+                onError={handleImageFallback}
               />
               {/* Image navigation arrows */}
               {images.length > 1 && (

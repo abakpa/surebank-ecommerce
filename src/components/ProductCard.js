@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { addToCartRequest } from '../redux/slices/cartSlice';
-import { API_URL } from '../utils/api';
+import { handleImageFallback, PRODUCT_FALLBACK_IMAGE, resolveImageUrl } from '../utils/image';
 
 const ProductCard = ({ product, compact = false }) => {
   const dispatch = useDispatch();
@@ -14,8 +14,8 @@ const ProductCard = ({ product, compact = false }) => {
   };
 
   const imageUrl = product.images && product.images.length > 0
-    ? `${API_URL}${product.images[0]}`
-    : '/placeholder-product.png';
+    ? resolveImageUrl(product.images[0])
+    : PRODUCT_FALLBACK_IMAGE;
 
   return (
     <div className={`card group bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow ${compact ? 'max-w-[210px] mx-auto' : ''}`}>
@@ -25,9 +25,7 @@ const ProductCard = ({ product, compact = false }) => {
             src={imageUrl}
             alt={product.name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            onError={(e) => {
-              e.target.src = 'https://via.placeholder.com/200x150?text=No+Image';
-            }}
+            onError={handleImageFallback}
           />
           {product.allowInstallment && (
             <span className={`absolute top-1.5 left-1.5 bg-green-500 text-white rounded ${compact ? 'text-[9px] px-1.5 py-0.5' : 'text-[10px] px-1.5 py-0.5'}`}>

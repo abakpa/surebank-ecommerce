@@ -8,8 +8,8 @@ import {
 } from '../redux/slices/cartSlice';
 import { initializePaymentRequest } from '../redux/slices/orderSlice';
 import { loginRequest, registerRequest, clearError } from '../redux/slices/authSlice';
-import { API_URL } from '../utils/api';
 import { getStates, getLGAs, getTowns } from '../data/nigerianLocations';
+import { PRODUCT_FALLBACK_IMAGE, resolveImageUrl } from '../utils/image';
 
 const Cart = () => {
   const dispatch = useDispatch();
@@ -396,7 +396,7 @@ const Cart = () => {
                 {/* Product Image */}
                 <Link to={`/product/${item.productId}`} className="flex-shrink-0">
                   <img
-                    src={item.image ? `${API_URL}${item.image}` : 'https://via.placeholder.com/100'}
+                    src={item.image ? resolveImageUrl(item.image) : PRODUCT_FALLBACK_IMAGE}
                     alt={item.productName}
                     className="w-24 h-24 object-cover rounded-lg"
                   />

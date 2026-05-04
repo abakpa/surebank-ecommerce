@@ -10,10 +10,12 @@ const Products = () => {
   const [searchParams] = useSearchParams();
   const { products, categories, loading } = useSelector((state) => state.products);
   const searchCategoryId = searchParams.get('category') || '';
+  const searchSubCategoryId = searchParams.get('subcategory') || '';
   const searchQuery = searchParams.get('search') || '';
 
   const [filters, setFilters] = useState({
     categoryId: categoryId || searchCategoryId,
+    subCategoryId: searchSubCategoryId,
     search: searchQuery,
     minPrice: '',
     maxPrice: '',
@@ -23,6 +25,7 @@ const Products = () => {
   useEffect(() => {
     const queryFilters = {};
     if (filters.categoryId) queryFilters.categoryId = filters.categoryId;
+    if (filters.subCategoryId) queryFilters.subCategoryId = filters.subCategoryId;
     if (filters.search) queryFilters.search = filters.search;
     if (filters.minPrice) queryFilters.minPrice = filters.minPrice;
     if (filters.maxPrice) queryFilters.maxPrice = filters.maxPrice;
@@ -34,18 +37,24 @@ const Products = () => {
     setFilters((prev) => ({
       ...prev,
       categoryId: categoryId || searchCategoryId,
+      subCategoryId: searchSubCategoryId,
       search: searchQuery,
     }));
-  }, [categoryId, searchCategoryId, searchQuery]);
+  }, [categoryId, searchCategoryId, searchSubCategoryId, searchQuery]);
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
-    setFilters((prev) => ({ ...prev, [name]: value }));
+    setFilters((prev) => ({
+      ...prev,
+      [name]: value,
+      ...(name === 'categoryId' ? { subCategoryId: '' } : {}),
+    }));
   };
 
   const clearFilters = () => {
     setFilters({
       categoryId: '',
+      subCategoryId: '',
       search: '',
       minPrice: '',
       maxPrice: '',
@@ -53,6 +62,15 @@ const Products = () => {
   };
 
   const currentCategory = categories.find((c) => c._id === filters.categoryId);
+  const subCategories = currentCategory?.subcategories || [];
+  const groupedProducts = subCategories
+    .map((subCategory) => ({
+      subCategory,
+      products: products.filter((product) => product.subCategoryId === subCategory._id),
+    }))
+    .filter((group) => group.products.length > 0);
+  const uncategorizedProducts = products.filter((product) => !product.subCategoryId);
+  const shouldGroupBySubCategory = Boolean(currentCategory && !filters.subCategoryId && subCategories.length > 0);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -103,6 +121,25 @@ const Products = () => {
               </select>
             </div>
 
+            {currentCategory && subCategories.length > 0 && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Subcategory</label>
+                <select
+                  name="subCategoryId"
+                  value={filters.subCategoryId}
+                  onChange={handleFilterChange}
+                  className="input-field"
+                >
+                  <option value="">All Subcategories</option>
+                  {subCategories.map((subCategory) => (
+                    <option key={subCategory._id} value={subCategory._id}>
+                      {subCategory.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {/* Price Range */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">Price Range</label>
@@ -141,6 +178,35 @@ const Products = () => {
             <p className="text-gray-600">
               {products.length} product{products.length !== 1 ? 's' : ''} found
             </p>
+            {currentCategory && subCategories.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFilters((prev) => ({ ...prev, subCategoryId: '' }))}
+                  className={`rounded-full px-3 py-1 text-sm transition ${
+                    !filters.subCategoryId
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-white text-gray-700 border border-gray-200 hover:border-primary-300'
+                  }`}
+                >
+                  All
+                </button>
+                {subCategories.map((subCategory) => (
+                  <button
+                    key={subCategory._id}
+                    type="button"
+                    onClick={() => setFilters((prev) => ({ ...prev, subCategoryId: subCategory._id }))}
+                    className={`rounded-full px-3 py-1 text-sm transition ${
+                      filters.subCategoryId === subCategory._id
+                        ? 'bg-primary-600 text-white'
+                        : 'bg-white text-gray-700 border border-gray-200 hover:border-primary-300'
+                    }`}
+                  >
+                    {subCategory.name}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {loading ? (
@@ -153,6 +219,42 @@ const Products = () => {
               <button onClick={clearFilters} className="mt-4 text-primary-600 hover:text-primary-700">
                 Clear filters
               </button>
+            </div>
+          ) : shouldGroupBySubCategory ? (
+            <div className="space-y-10">
+              {groupedProducts.map((group) => (
+                <section key={group.subCategory._id}>
+                  <div className="mb-4 flex items-end justify-between gap-3">
+                    <div>
+                      <h2 className="text-xl font-semibold text-gray-900">{group.subCategory.name}</h2>
+                      <p className="text-sm text-gray-500">
+                        {group.products.length} product{group.products.length !== 1 ? 's' : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+                    {group.products.map((product) => (
+                      <ProductCard key={product._id} product={product} />
+                    ))}
+                  </div>
+                </section>
+              ))}
+
+              {uncategorizedProducts.length > 0 && (
+                <section>
+                  <div className="mb-4">
+                    <h2 className="text-xl font-semibold text-gray-900">Other Products</h2>
+                    <p className="text-sm text-gray-500">
+                      {uncategorizedProducts.length} product{uncategorizedProducts.length !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+                    {uncategorizedProducts.map((product) => (
+                      <ProductCard key={product._id} product={product} />
+                    ))}
+                  </div>
+                </section>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">

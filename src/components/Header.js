@@ -43,16 +43,30 @@ const Header = () => {
                 Products
               </Link>
               {categories.length > 0 && (
-                <div className="absolute left-0 mt-2 w-48 bg-white rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                  <div className="py-2">
+                <div className="absolute left-0 mt-2 w-72 bg-white rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                  <div className="py-2 max-h-96 overflow-y-auto">
                     {categories.map((category) => (
-                      <Link
-                        key={category._id}
-                        to={`/products/category/${category._id}`}
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      >
-                        {category.name}
-                      </Link>
+                      <div key={category._id} className="border-b border-gray-100 last:border-b-0">
+                        <Link
+                          to={`/products/category/${category._id}`}
+                          className="block px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-100"
+                        >
+                          {category.name}
+                        </Link>
+                        {(category.subcategories || []).length > 0 && (
+                          <div className="pb-2">
+                            {category.subcategories.map((subCategory) => (
+                              <Link
+                                key={subCategory._id}
+                                to={`/products/category/${category._id}?subcategory=${subCategory._id}`}
+                                className="block px-6 py-1.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary-600"
+                              >
+                                {subCategory.name}
+                              </Link>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -151,14 +165,29 @@ const Header = () => {
                       All Products
                     </Link>
                     {categories.map((category) => (
-                      <Link
-                        key={category._id}
-                        to={`/products/category/${category._id}`}
-                        className="block text-sm text-gray-600"
-                        onClick={handleMobileClose}
-                      >
-                        {category.name}
-                      </Link>
+                      <div key={category._id} className="space-y-2">
+                        <Link
+                          to={`/products/category/${category._id}`}
+                          className="block text-sm font-medium text-gray-700"
+                          onClick={handleMobileClose}
+                        >
+                          {category.name}
+                        </Link>
+                        {(category.subcategories || []).length > 0 && (
+                          <div className="space-y-2 pl-4">
+                            {category.subcategories.map((subCategory) => (
+                              <Link
+                                key={subCategory._id}
+                                to={`/products/category/${category._id}?subcategory=${subCategory._id}`}
+                                className="block text-sm text-gray-500"
+                                onClick={handleMobileClose}
+                              >
+                                {subCategory.name}
+                              </Link>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </div>
                 )}
