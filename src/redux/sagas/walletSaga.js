@@ -41,8 +41,8 @@ function* fetchWalletSaga() {
 }
 
 function* initializeWalletFundingSaga(action) {
+  const { fundingData, onSuccess, onError } = action.payload;
   try {
-    const { fundingData, onSuccess } = action.payload;
     const response = yield call(
       axios.post,
       `${API_URL}/api/ecommerce/auth/wallet/fund/initialize`,
@@ -56,11 +56,13 @@ function* initializeWalletFundingSaga(action) {
       onSuccess(response.data.data);
     }
   } catch (error) {
+    const message = getErrorMessage(error, 'Failed to initialize wallet funding');
     yield put(
-      initializeWalletFundingFailure(
-        getErrorMessage(error, 'Failed to initialize wallet funding')
-      )
+      initializeWalletFundingFailure(message)
     );
+    if (onError) {
+      onError(message);
+    }
   }
 }
 
@@ -76,7 +78,7 @@ function* verifyWalletFundingSaga(action) {
     yield put(verifyWalletFundingSuccess(response.data));
 
     if (navigate) {
-      navigate('/wallet');
+      navigate('/orders');
     }
   } catch (error) {
     yield put(

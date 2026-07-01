@@ -8,8 +8,9 @@ const Login = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const redirect = searchParams.get('redirect') || '';
+  const sessionExpired = searchParams.get('sessionExpired') === '1';
 
-  const { loading, error, isAuthenticated, requiresPasswordUpdate } = useSelector((state) => state.auth);
+  const { loading, error, isAuthenticated } = useSelector((state) => state.auth);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     phone: '',
@@ -17,17 +18,13 @@ const Login = () => {
   });
 
   useEffect(() => {
-    if (isAuthenticated && requiresPasswordUpdate) {
-      navigate('/change-password', { state: { forced: true } });
-      return;
-    }
     if (isAuthenticated) {
       navigate(redirect ? `/${redirect}` : '/');
     }
     return () => {
       dispatch(clearError());
     };
-  }, [isAuthenticated, requiresPasswordUpdate, navigate, redirect, dispatch]);
+  }, [isAuthenticated, navigate, redirect, dispatch]);
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -55,6 +52,12 @@ const Login = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-3">
+              {sessionExpired && (
+                <div className="rounded-lg bg-amber-100 p-3 text-sm text-amber-800">
+                  Your login session has expired. Please login again to continue.
+                </div>
+              )}
+
               <input
                 type="tel"
                 placeholder="Phone Number"

@@ -19,18 +19,25 @@ function* loginSaga(action) {
       password,
     });
 
+    if (response.data.requiresPasswordUpdate) {
+      localStorage.removeItem('customerToken');
+      localStorage.removeItem('customerData');
+      localStorage.removeItem('customerAccountNumber');
+      localStorage.removeItem('customerSBAccountNumber');
+      if (navigate) {
+        navigate('/admin-reset-password', {
+          state: { phone, forced: true },
+          replace: true,
+        });
+      }
+      return;
+    }
+
     // Store token first
     const token = response.data.token;
     localStorage.setItem('customerToken', token);
 
     yield put(loginSuccess(response.data));
-
-    if (response.data.requiresPasswordUpdate) {
-      if (navigate) {
-        navigate('/change-password', { state: { forced: true } });
-      }
-      return;
-    }
 
     // Merge guest cart with customer cart and wait for it to complete
     const sessionId = getSessionId();

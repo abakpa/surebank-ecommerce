@@ -9,7 +9,7 @@ import { initializePaymentRequest, clearPaymentState } from '../redux/slices/ord
 import { fetchWalletRequest } from '../redux/slices/walletSlice';
 import { getStates, getLGAs, getTowns } from '../data/nigerianLocations';
 import { handleImageFallback, PRODUCT_FALLBACK_IMAGE, resolveImageUrl } from '../utils/image';
-import { API_URL } from '../utils/api';
+import { API_URL, getAuthHeader } from '../utils/api';
 import ProductCard from '../components/ProductCard';
 
 const ProductDetail = () => {
@@ -57,6 +57,7 @@ const ProductDetail = () => {
   const [paymentErrorMessage, setPaymentErrorMessage] = useState('');
   const [showPaymentSourceModal, setShowPaymentSourceModal] = useState(false);
   const [pendingPaymentData, setPendingPaymentData] = useState(null);
+  const [paymentSourceMode, setPaymentSourceMode] = useState('all');
   const [relatedProducts, setRelatedProducts] = useState([]);
   const [relatedLoading, setRelatedLoading] = useState(false);
 
@@ -252,6 +253,68 @@ const ProductDetail = () => {
     };
   };
 
+  const openPaymentSourceModal = useCallback(async (paymentData) => {
+    setPaymentErrorMessage('');
+    setProcessingPayment(true);
+
+    try {
+      const activeResponse = await axios.get(
+        `${API_URL}/api/ecommerce/orders/active`,
+        { headers: getAuthHeader() }
+      );
+
+      if (activeResponse.data?.hasActiveOrder) {
+        if (paymentData.paymentType === 'installment') {
+          setPaymentSourceMode('bankOnly');
+          setProcessingPayment(false);
+          dispatch(initializePaymentRequest({
+            paymentData: { ...paymentData, paymentSource: 'bank' },
+            onSuccess: (data) => {
+              if (data?.authorization_url) {
+                window.location.href = data.authorization_url;
+                return;
+              }
+
+              setProcessingPayment(false);
+              setPaymentErrorMessage('Failed to get payment URL. Please try again.');
+            },
+            onError: (error) => {
+              setProcessingPayment(false);
+              setPaymentErrorMessage(error || 'Payment initialization failed. Please try again.');
+            }
+          }));
+          return;
+        }
+
+        setPendingPaymentData(paymentData);
+        setPaymentSourceMode('existingOrder');
+        setShowPaymentSourceModal(true);
+        setProcessingPayment(false);
+        return;
+      }
+
+      dispatch(initializePaymentRequest({
+        paymentData: { ...paymentData, paymentSource: 'bank' },
+        onSuccess: (data) => {
+          if (data?.authorization_url) {
+            window.location.href = data.authorization_url;
+            return;
+          }
+
+          setProcessingPayment(false);
+          setPaymentErrorMessage('Failed to get payment URL. Please try again.');
+        },
+        onError: (error) => {
+          setProcessingPayment(false);
+          setPaymentErrorMessage(error || 'Payment initialization failed. Please try again.');
+        }
+      }));
+    } catch (error) {
+      setPaymentErrorMessage(error.response?.data?.message || 'Unable to prepare checkout. Please try again.');
+      setProcessingPayment(false);
+    }
+  }, [dispatch]);
+
   // Handle Buy Now with Paystack (outright payment)
   const handleBuyNowPayment = useCallback(() => {
     if (!isAuthenticated) {
@@ -312,11 +375,10 @@ const ProductDetail = () => {
       pickupLocationId: selectedPickupLocation?.id || null
     };
 
-    setPendingPaymentData(paymentData);
-    setShowPaymentSourceModal(true);
+    openPaymentSourceModal(paymentData);
   }, [
     isAuthenticated, buyNowEmail, deliveryMethod, buyNowAddress, buyNowState,
-    buyNowLGA, buyNowTown, selectedPickupLocation, customer, product, hasVariations, selectedVariation, selectedPrice
+    buyNowLGA, buyNowTown, selectedPickupLocation, customer, product, hasVariations, selectedVariation, selectedPrice, openPaymentSourceModal
   ]);
 
   // Load Paystack script
@@ -361,7 +423,7 @@ const ProductDetail = () => {
         if (data?.paymentSource === 'wallet' && data?.order) {
           setProcessingPayment(false);
           setShowPaymentSourceModal(false);
-          navigate(`/order-confirmation/${data.order.orderNumber}`);
+          navigate(`/orders?orderNumber=${data.order.orderNumber}`);
           return;
         }
 
@@ -393,14 +455,27 @@ const ProductDetail = () => {
       return;
     }
 
-    const requiredAmount = Number(pendingPaymentData.amountToCharge || 0);
-    if (walletBalance < requiredAmount) {
-      setPaymentErrorMessage(`Insufficient wallet balance. Available: ₦${walletBalance.toLocaleString()}, Required: ₦${requiredAmount.toLocaleString()}`);
+    if (paymentSourceMode === 'existingOrder') {
+      setProcessingPayment(true);
+      setPaymentErrorMessage('');
+      axios.post(
+        `${API_URL}/api/ecommerce/orders/active/items`,
+        pendingPaymentData,
+        { headers: getAuthHeader() }
+      ).then((response) => {
+        const orderNumber = response.data?.order?.orderNumber;
+        setShowPaymentSourceModal(false);
+        navigate(orderNumber ? `/orders?orderNumber=${orderNumber}` : '/orders');
+      }).catch((error) => {
+        setPaymentErrorMessage(error.response?.data?.message || 'Unable to add product to My Orders.');
+      }).finally(() => {
+        setProcessingPayment(false);
+      });
       return;
     }
 
     submitPayment({ ...pendingPaymentData, paymentSource: 'wallet' });
-  }, [pendingPaymentData, submitPayment, walletBalance]);
+  }, [navigate, paymentSourceMode, pendingPaymentData, submitPayment]);
 
   const handlePaySmallSmall = useCallback(() => {
     if (!isAuthenticated) {
@@ -450,11 +525,10 @@ const ProductDetail = () => {
       quantity: 1
     };
 
-    setPendingPaymentData(paymentData);
-    setShowPaymentSourceModal(true);
+    openPaymentSourceModal(paymentData);
   }, [
     isAuthenticated, customerEmail, customer, product, firstPaymentAmount,
-    deliveryAddress, selectedLGA, selectedState, signupForm.phone, hasVariations, selectedVariation, selectedPrice
+    deliveryAddress, selectedLGA, selectedState, signupForm.phone, hasVariations, selectedVariation, selectedPrice, openPaymentSourceModal
   ]);
 
   const getCategoryName = (categoryId) => {
@@ -1371,9 +1445,11 @@ const ProductDetail = () => {
           <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-lg font-bold text-gray-900">Choose how to pay</h3>
+                <h3 className="text-lg font-bold text-gray-900">
+                  Choose how to pay
+                </h3>
                 <p className="mt-1 text-sm text-gray-500">
-                  Pay now from your wallet or continue with bank payment through Paystack.
+                  Pay from bank now through Paystack, or continue to My Orders to pay from your wallet.
                 </p>
               </div>
               <button
@@ -1409,7 +1485,7 @@ const ProductDetail = () => {
 
             {walletBalance < Number(pendingPaymentData.amountToCharge || 0) && (
               <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                Your wallet balance is not enough for this payment yet. You can fund your wallet or pay from bank.
+                Your wallet balance is not enough yet. Continue to My Orders to pay from wallet or top up automatically.
               </div>
             )}
 
@@ -1423,10 +1499,10 @@ const ProductDetail = () => {
               <button
                 type="button"
                 onClick={handleWalletPayment}
-                disabled={processingPayment || paymentLoading || walletBalance < Number(pendingPaymentData.amountToCharge || 0)}
+                disabled={processingPayment || paymentLoading}
                 className="rounded-2xl bg-gradient-to-r from-emerald-500 to-green-600 px-4 py-3 text-sm font-semibold text-white shadow-lg transition hover:shadow-xl disabled:cursor-not-allowed disabled:from-gray-300 disabled:to-gray-400"
               >
-                {processingPayment || paymentLoading ? 'Processing...' : 'Pay from Wallet'}
+                {processingPayment || paymentLoading ? 'Processing...' : 'Pay from Wallet in My Orders'}
               </button>
               <button
                 type="button"
@@ -1436,18 +1512,6 @@ const ProductDetail = () => {
               >
                 {processingPayment || paymentLoading ? 'Processing...' : 'Pay from Bank'}
               </button>
-              {walletBalance < Number(pendingPaymentData.amountToCharge || 0) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowPaymentSourceModal(false);
-                    navigate('/wallet');
-                  }}
-                  className="text-center text-sm font-medium text-orange-600 hover:text-orange-700"
-                >
-                  Fund wallet instead
-                </button>
-              )}
             </div>
           </div>
         </div>

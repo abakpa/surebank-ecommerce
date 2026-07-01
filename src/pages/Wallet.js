@@ -26,8 +26,6 @@ const Wallet = () => {
   } = useSelector((state) => state.wallet);
 
   const [amount, setAmount] = useState('');
-  const [email, setEmail] = useState(authCustomer?.email || '');
-
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login?redirect=wallet');
@@ -42,12 +40,6 @@ const Wallet = () => {
     };
   }, [dispatch, isAuthenticated, navigate]);
 
-  useEffect(() => {
-    if (authCustomer?.email) {
-      setEmail(authCustomer.email);
-    }
-  }, [authCustomer?.email]);
-
   const walletBalance = useMemo(() => Number(account?.availableBalance || 0), [account?.availableBalance]);
 
   const handleFundWallet = (event) => {
@@ -56,7 +48,6 @@ const Wallet = () => {
     dispatch(initializeWalletFundingRequest({
       fundingData: {
         amount,
-        customerEmail: email,
         callbackUrl: `${window.location.origin}/payment/wallet/verify`,
       },
       onSuccess: (data) => {
@@ -207,21 +198,6 @@ const Wallet = () => {
 
           <form className="mt-6 space-y-4" onSubmit={handleFundWallet}>
             <div>
-              <label htmlFor="wallet-email" className="block text-sm font-medium text-gray-700 mb-2">
-                Email Address
-              </label>
-              <input
-                id="wallet-email"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="you@example.com"
-                className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-200"
-                required
-              />
-            </div>
-
-            <div>
               <label htmlFor="wallet-amount" className="block text-sm font-medium text-gray-700 mb-2">
                 Amount
               </label>
@@ -243,7 +219,7 @@ const Wallet = () => {
               disabled={fundingLoading}
               className="w-full rounded-full bg-orange-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-orange-300"
             >
-              {fundingLoading ? 'Redirecting to payment...' : 'Fund Wallet'}
+              {fundingLoading ? 'Redirecting...' : 'Deposit'}
             </button>
           </form>
         </aside>

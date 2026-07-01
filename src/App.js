@@ -27,12 +27,19 @@ import Account from './pages/Account';
 import TermsAndConditions from './pages/TermsAndConditions';
 import ForgotPassword from './pages/ForgotPassword';
 import ChangePassword from './pages/ChangePassword';
+import AdminResetPassword from './pages/AdminResetPassword';
 
 // Layout wrapper component
 const Layout = ({ children }) => {
   const location = useLocation();
   const isPaymentPage = location.pathname.startsWith('/payment/');
   const isProductDetailPage = /^\/product\/[^/]+/.test(location.pathname);
+  const shouldHideFooter = (
+    isProductDetailPage ||
+    location.pathname === '/products' ||
+    location.pathname.startsWith('/products/category/') ||
+    location.pathname === '/orders'
+  );
 
   // Only hide header/footer on payment verification page
   if (isPaymentPage) {
@@ -46,7 +53,7 @@ const Layout = ({ children }) => {
       <main className="flex-1 bg-gray-50 pb-20 md:pb-0">{children}</main>
       <WhatsAppSupport />
       <MobileBottomNav />
-      {!isProductDetailPage && <Footer />}
+      {!shouldHideFooter && <Footer />}
     </div>
   );
 };
@@ -69,6 +76,7 @@ function AppRoutes() {
         <Route path="/cart" element={<Cart />} />
         <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/admin-reset-password" element={<AdminResetPassword />} />
         <Route path="/change-password" element={<ChangePassword />} />
         <Route path="/register" element={<Register />} />
         <Route path="/orders" element={<Orders />} />

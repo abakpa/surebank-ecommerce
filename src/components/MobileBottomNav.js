@@ -41,7 +41,7 @@ const MobileBottomNav = () => {
     {
       label: 'account',
       to: '/account',
-      match: (pathname) => pathname.startsWith('/account') || pathname.startsWith('/login') || pathname.startsWith('/register') || pathname.startsWith('/wallet'),
+      match: (pathname) => pathname.startsWith('/account') || pathname.startsWith('/login') || pathname.startsWith('/register'),
       icon: (
         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.75 7.5a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.5 20.25a7.5 7.5 0 0 1 15 0" />

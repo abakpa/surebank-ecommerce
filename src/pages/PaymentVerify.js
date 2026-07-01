@@ -21,7 +21,7 @@ const PaymentVerify = () => {
 
   useEffect(() => {
     if (paymentVerified && currentOrder) {
-      navigate(`/order-confirmation/${currentOrder.orderNumber}`);
+      navigate(`/orders?orderNumber=${currentOrder.orderNumber}`);
     }
   }, [paymentVerified, currentOrder, navigate]);
 

@@ -144,7 +144,7 @@ function* verifyPaymentSaga(action) {
     yield put(clearCartSuccess());
 
     if (navigate && response.data.order) {
-      navigate(`/order-confirmation/${response.data.order.orderNumber}`);
+      navigate(`/orders?orderNumber=${response.data.order.orderNumber}`);
     }
   } catch (error) {
     yield put(verifyPaymentFailure(error.response?.data?.message || 'Failed to verify payment'));
