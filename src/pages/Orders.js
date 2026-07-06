@@ -63,12 +63,16 @@ const getDisplayPrice = (product) => {
   return Number(product?.price || 0);
 };
 
+const getTransactionNarration = (transaction) => (
+  String(transaction?.narration || '').replace(/\s+-\s+Ref:.+$/i, '')
+);
+
 const Orders = () => {
   const dispatch = useDispatch();
   const location = useLocation();
   const { orders, loading } = useSelector((state) => state.orders);
   const { products, productsLoading } = useSelector((state) => state.products);
-  const { isAuthenticated } = useSelector((state) => state.auth);
+  const { isAuthenticated, customer } = useSelector((state) => state.auth);
   const {
     account,
     transactions,
@@ -98,18 +102,22 @@ const Orders = () => {
   const activeOrder = useMemo(() => {
     const activeStatuses = new Set(['pending', 'confirmed', 'paid', 'partially_paid', 'processing', 'shipped', 'delivered']);
     const preferredOrderNumber = new URLSearchParams(location.search).get('orderNumber');
+    const writableOrders = orders.filter((order) => !order.isReadOnlyLegacy);
     if (preferredOrderNumber) {
-      const preferredOrder = orders.find((order) => order.orderNumber === preferredOrderNumber);
+      const preferredOrder = writableOrders.find((order) => order.orderNumber === preferredOrderNumber);
       if (preferredOrder) return preferredOrder;
     }
-    return orders.find((order) => activeStatuses.has(order.status)) || orders[0] || null;
+    return writableOrders.find((order) => activeStatuses.has(order.status)) || writableOrders[0] || null;
   }, [location.search, orders]);
+  const previousSBAccounts = useMemo(
+    () => orders.filter((order) => order.isReadOnlyLegacy),
+    [orders]
+  );
 
   const items = activeOrder?.items || [];
   const activeItems = items.filter(isActiveOrderItem);
   const activeItemsTotalAmount = activeItems.reduce((sum, item) => sum + Number(item.subtotal || 0), 0);
   const activeItemsPaidAmount = activeItems.reduce((sum, item) => sum + Number(item.paidAmount || 0), 0);
-  const activeItemsRemainingBalance = Math.max(0, activeItemsTotalAmount - activeItemsPaidAmount);
   const totalAmount = Number(activeOrder?.totalAmount || 0);
   const totalPaid = Number(activeOrder?.installmentPlan?.totalPaid || 0);
   const remainingBalance = Number(activeOrder?.installmentPlan?.remainingBalance || Math.max(0, totalAmount - totalPaid));
@@ -128,6 +136,7 @@ const Orders = () => {
   const selectedReplacementVariation = activeReplacementVariations.find(
     (variation) => variation._id === replacementVariationId
   );
+  const customerName = [customer?.firstName, customer?.lastName].filter(Boolean).join(' ') || 'Customer';
   const replacementUnitPrice = selectedReplacementVariation
     ? Number(selectedReplacementVariation.price || 0)
     : getDisplayPrice(selectedReplacementProduct);
@@ -147,6 +156,102 @@ const Orders = () => {
 
     return !isSameProduct && product.isActive !== false && matchesSearch;
   });
+  const previousSBAccountsSection = previousSBAccounts.length > 0 && (
+    <section className="mt-6 rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <div className="border-b border-slate-100 px-5 py-4 sm:px-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-slate-950">Previous SB Accounts</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Old SB accounts are shown for record keeping only. New products cannot be added to them.
+            </p>
+          </div>
+          <span className="self-start rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+            View only
+          </span>
+        </div>
+      </div>
+
+      <div className="divide-y divide-slate-100">
+        {previousSBAccounts.map((accountOrder) => {
+          const accountTotal = Number(accountOrder.totalAmount || 0);
+          const paidAmount = Number(accountOrder.installmentPlan?.totalPaid || 0);
+          const accountRemaining = Number(accountOrder.installmentPlan?.remainingBalance || Math.max(0, accountTotal - paidAmount));
+          const accountItems = accountOrder.items || [];
+
+          return (
+            <div key={accountOrder.orderNumber || accountOrder._id} className="p-5 sm:p-6">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-base font-bold text-slate-950">{accountOrder.SBAccountNumber || accountOrder.orderNumber}</h3>
+                    <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-700">
+                      Previous SB Account
+                    </span>
+                    <span className={`rounded-full border px-2.5 py-1 text-xs font-bold capitalize ${getStatusPill(accountOrder.paymentStatus)}`}>
+                      {accountOrder.paymentStatus || 'unpaid'}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Created: {formatDate(accountOrder.createdAt)} | Status: {accountOrder.status || 'N/A'}
+                  </p>
+                </div>
+                <div className="grid gap-2 text-sm sm:grid-cols-3 lg:min-w-[420px]">
+                  <div className="rounded-2xl bg-slate-50 p-3">
+                    <p className="text-xs font-semibold uppercase text-slate-500">Total</p>
+                    <p className="mt-1 font-bold text-slate-950">{formatCurrency(accountTotal)}</p>
+                  </div>
+                  <div className="rounded-2xl bg-emerald-50 p-3">
+                    <p className="text-xs font-semibold uppercase text-emerald-700">Paid</p>
+                    <p className="mt-1 font-bold text-emerald-800">{formatCurrency(paidAmount)}</p>
+                  </div>
+                  <div className="rounded-2xl bg-amber-50 p-3">
+                    <p className="text-xs font-semibold uppercase text-amber-700">Remaining</p>
+                    <p className="mt-1 font-bold text-amber-800">{formatCurrency(accountRemaining)}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 overflow-x-auto rounded-2xl border border-slate-100">
+                <table className="min-w-full divide-y divide-slate-100 text-sm">
+                  <thead className="bg-slate-50 text-left text-xs font-bold uppercase tracking-wide text-slate-500">
+                    <tr>
+                      <th className="px-4 py-3">Product</th>
+                      <th className="px-4 py-3">Qty</th>
+                      <th className="px-4 py-3">Amount</th>
+                      <th className="px-4 py-3">Paid</th>
+                      <th className="px-4 py-3">Payment</th>
+                      <th className="px-4 py-3">Collection</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {accountItems.map((item) => (
+                      <tr key={item._id || item.productName}>
+                        <td className="min-w-[220px] px-4 py-3 font-semibold text-slate-900">{item.productName}</td>
+                        <td className="px-4 py-3 text-slate-600">{Number(item.quantity || 1).toLocaleString()}</td>
+                        <td className="px-4 py-3 font-bold text-slate-900">{formatCurrency(item.subtotal)}</td>
+                        <td className="px-4 py-3 text-slate-600">{formatCurrency(item.paidAmount)}</td>
+                        <td className="px-4 py-3">
+                          <span className={`rounded-full border px-2.5 py-1 text-xs font-bold capitalize ${getStatusPill(item.paymentStatus)}`}>
+                            {item.paymentStatus || 'unpaid'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`rounded-full border px-2.5 py-1 text-xs font-bold capitalize ${getStatusPill(item.fulfillmentStatus)}`}>
+                            {item.fulfillmentStatus || 'pending'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
 
   if (!isAuthenticated) {
     return <Navigate to="/login?redirect=orders" />;
@@ -188,6 +293,11 @@ const Orders = () => {
           autoPayItemId: item._id,
         },
         onSuccess: (data) => {
+          localStorage.setItem('pendingWalletAutoPay', JSON.stringify({
+            orderNumber: activeOrder.orderNumber,
+            itemId: item._id,
+            reference: data.reference || '',
+          }));
           window.location.href = data.authorization_url;
         },
         onError: (error) => {
@@ -283,13 +393,59 @@ const Orders = () => {
 
   if (!activeOrder) {
     return (
-      <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="rounded-3xl border border-dashed border-slate-200 bg-white px-6 py-14 text-center shadow-sm">
-          <p className="text-lg font-semibold text-slate-900">You do not have an ecommerce order account yet.</p>
-          <p className="mt-2 text-sm text-slate-500">Select a product to create your Sure-Bank Stores order account.</p>
-          <Link to="/products" className="mt-6 inline-flex rounded-full bg-emerald-600 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-700">
-            Start Shopping
-          </Link>
+      <div className="min-h-screen bg-slate-50">
+        <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+          {previousSBAccounts.length > 0 ? (
+            <div className="overflow-hidden rounded-3xl border border-emerald-200 bg-white shadow-sm">
+              <div className="grid gap-0 lg:grid-cols-[1.2fr,0.8fr]">
+                <div className="px-6 py-8 sm:px-8 sm:py-10">
+                  <span className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-amber-700">
+                    Previous SB accounts found
+                  </span>
+                  <h1 className="mt-4 text-2xl font-extrabold text-slate-950 sm:text-3xl">
+                    Create your new Sure-Bank Stores order account
+                  </h1>
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
+                    Your old SB accounts are available below for viewing only. To buy new products or make ecommerce deposits, select products from Sure-Bank Stores and the system will create your new active SB order account.
+                  </p>
+                  <Link
+                    to="/products"
+                    className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-emerald-600 px-6 py-4 text-base font-extrabold text-white shadow-sm transition hover:bg-emerald-700 sm:w-auto"
+                  >
+                    Start Shopping
+                  </Link>
+                </div>
+                <div className="border-t border-slate-100 bg-slate-950 px-6 py-7 text-white lg:border-l lg:border-t-0">
+                  <p className="text-sm font-semibold uppercase tracking-wide text-emerald-300">Next step</p>
+                  <div className="mt-4 space-y-4 text-sm text-slate-200">
+                    <div>
+                      <p className="font-bold text-white">1. Pick product or products</p>
+                      <p className="mt-1 text-slate-300">Go to the products page and select what you want to buy.</p>
+                    </div>
+                    <div>
+                      <p className="font-bold text-white">2. Create the new SB account</p>
+                      <p className="mt-1 text-slate-300">Checkout will create the current ecommerce SB order account.</p>
+                    </div>
+                    <div>
+                      <p className="font-bold text-white">3. Pay or deposit</p>
+                      <p className="mt-1 text-slate-300">After the new account exists, you can pay for products or deposit into your wallet.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-3xl border border-dashed border-slate-200 bg-white px-6 py-12 text-center shadow-sm">
+              <p className="text-lg font-semibold text-slate-900">You do not have an ecommerce order account yet.</p>
+              <p className="mt-2 text-sm text-slate-500">
+                Select a product to create your current Sure-Bank Stores order account.
+              </p>
+              <Link to="/products" className="mt-6 inline-flex rounded-full bg-emerald-600 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-700">
+                Start Shopping
+              </Link>
+            </div>
+          )}
+          {previousSBAccountsSection}
         </div>
       </div>
     );
@@ -297,52 +453,51 @@ const Orders = () => {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="mx-auto max-w-7xl px-3 py-4 sm:px-6 sm:py-8 lg:px-8">
+        <div className="mb-3 flex flex-col gap-2 sm:mb-6 sm:gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700">Sure-Bank Stores Account</p>
-            <h1 className="mt-2 text-2xl font-bold text-slate-950 sm:text-3xl">My Orders</h1>
-            <p className="mt-2 max-w-2xl text-sm text-slate-600">
-              One active order account, one SB account, and all selected products tracked in one place.
+            <h1 className="mt-1 text-xl font-bold text-slate-950 sm:mt-2 sm:text-3xl">My Orders</h1>
+            <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-600 sm:mt-2 sm:text-sm">
+              Thank you Dear {customerName}, our desire is to provide all your needs, feel free to search, browse or ask us on whatsapp
             </p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">SB Account</p>
-            <p className="mt-1 text-lg font-bold text-slate-900">{activeOrder.SBAccountNumber || 'Pending'}</p>
+          <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm sm:rounded-2xl sm:px-4 sm:py-3">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500 sm:text-xs">SB Account</p>
+            <p className="mt-0.5 text-sm font-bold text-slate-900 sm:mt-1 sm:text-lg">{activeOrder.SBAccountNumber || 'Pending'}</p>
           </div>
         </div>
 
         {(pageError || fundingError) && (
-          <div className="mb-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+          <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700 sm:mb-5 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
             {pageError || fundingError}
           </div>
         )}
 
-        <div className="grid gap-5 lg:grid-cols-[1.3fr,0.7fr]">
-          <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="rounded-2xl bg-slate-950 p-4 text-white">
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-300">Wallet Balance</p>
-                <p className="mt-2 text-2xl font-bold">{formatCurrency(walletBalance)}</p>
+        <div className="grid gap-3 sm:gap-5 lg:grid-cols-[1.3fr,0.7fr]">
+          <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:rounded-3xl sm:p-6">
+            <div className="grid gap-2 sm:gap-4 md:grid-cols-2">
+              <div className="rounded-xl bg-slate-950 p-3 text-white sm:rounded-2xl sm:p-4">
+                <p className="text-[10px] font-medium uppercase tracking-wide text-slate-300 sm:text-xs">Wallet Balance</p>
+                <p className="mt-1 text-lg font-bold sm:mt-2 sm:text-2xl">{formatCurrency(walletBalance)}</p>
               </div>
-              <div className="rounded-2xl bg-amber-50 p-4">
-                <p className="text-xs font-medium uppercase tracking-wide text-amber-700">Remaining Balance</p>
-                <p className="mt-2 text-2xl font-bold text-amber-900">{formatCurrency(remainingBalance)}</p>
+              <div className="rounded-xl bg-amber-50 p-3 sm:rounded-2xl sm:p-4">
+                <p className="text-[10px] font-medium uppercase tracking-wide text-amber-700 sm:text-xs">Remaining Balance</p>
+                <p className="mt-1 text-lg font-bold text-amber-900 sm:mt-2 sm:text-2xl">{formatCurrency(remainingBalance)}</p>
               </div>
             </div>
 
-            <div className="mt-6">
-              <div className="mb-2 flex items-center justify-between gap-4">
-                <p className="text-sm font-semibold text-slate-800">Payment Progress</p>
-                <p className="text-sm font-bold text-emerald-700">{progress}%</p>
+            <div className="mt-3 sm:mt-6">
+              <div className="mb-1.5 flex items-center justify-between gap-3 sm:mb-2 sm:gap-4">
+                <p className="text-xs font-semibold text-slate-800 sm:text-sm">Payment Progress</p>
+                <p className="text-xs font-bold text-emerald-700 sm:text-sm">{progress}%</p>
               </div>
-              <div className="h-3 overflow-hidden rounded-full bg-slate-100">
+              <div className="h-2 overflow-hidden rounded-full bg-slate-100 sm:h-3">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-sky-500 to-amber-400"
                   style={{ width: `${progress}%` }}
                 />
               </div>
-              <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
+              <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] leading-4 text-slate-500 sm:mt-3 sm:gap-2 sm:text-xs">
                 <span>Created: {formatDate(activeOrder.createdAt)}</span>
                 <span className="hidden sm:inline">•</span>
                 <span>Shipping: {activeOrder.shippingAddress || 'Not provided'}</span>
@@ -352,10 +507,10 @@ const Orders = () => {
             </div>
           </section>
 
-          <aside className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-            <h2 className="text-lg font-bold text-slate-950">Deposit to Wallet</h2>
-            <p className="mt-1 text-sm text-slate-500">Fund your wallet with Paystack, then pay for any product row.</p>
-            <form className="mt-5 space-y-3" onSubmit={handleFundWallet}>
+          <aside className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:rounded-3xl sm:p-6">
+            <h2 className="text-base font-bold text-slate-950 sm:text-lg">Deposit to Wallet</h2>
+            <p className="mt-0.5 text-xs text-slate-500 sm:mt-1 sm:text-sm">Fund your wallet with Paystack, then pay for any product row.</p>
+            <form className="mt-3 space-y-2 sm:mt-5 sm:space-y-3" onSubmit={handleFundWallet}>
               <input
                 type="number"
                 min="100"
@@ -363,13 +518,13 @@ const Orders = () => {
                 value={depositAmount}
                 onChange={(event) => setDepositAmount(event.target.value)}
                 placeholder="Amount"
-                className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm"
                 required
               />
               <button
                 type="submit"
                 disabled={fundingLoading}
-                className="w-full rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
+                className="w-full rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm"
               >
                 {fundingLoading ? 'Redirecting...' : 'Deposit'}
               </button>
@@ -377,10 +532,10 @@ const Orders = () => {
           </aside>
         </div>
 
-        <section className="mt-6 rounded-3xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-100 px-5 py-4 sm:px-6">
-            <h2 className="text-lg font-bold text-slate-950">Products Under This Order</h2>
-            <p className="mt-1 text-sm text-slate-500">Pay, replace, and track collection status per product.</p>
+        <section className="mt-3 rounded-2xl border border-slate-200 bg-white shadow-sm sm:mt-6 sm:rounded-3xl">
+          <div className="border-b border-slate-100 px-3 py-3 sm:px-6 sm:py-4">
+            <h2 className="text-base font-bold text-slate-950 sm:text-lg">Products Under This Order</h2>
+            <p className="mt-0.5 text-xs text-slate-500 sm:mt-1 sm:text-sm">Pay, replace, and track collection status per product.</p>
           </div>
 
           <div className="hidden overflow-x-auto lg:block">
@@ -469,37 +624,37 @@ const Orders = () => {
             </table>
           </div>
 
-          <div className="space-y-3 p-4 lg:hidden">
+          <div className="space-y-2 p-2.5 sm:space-y-3 sm:p-4 lg:hidden">
             {activeItems.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-center text-sm text-slate-500">
+              <div className="rounded-xl border border-dashed border-slate-200 bg-white p-4 text-center text-xs text-slate-500 sm:rounded-2xl sm:p-6 sm:text-sm">
                 No active products pending on this order.
               </div>
             ) : activeItems.map((item) => {
               const due = Math.max(0, Number(item.subtotal || 0) - Number(item.paidAmount || 0));
               return (
-                <div key={item._id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                  <div className="flex items-start justify-between gap-3">
+                <div key={item._id} className="rounded-xl border border-slate-100 bg-slate-50 p-2.5 sm:rounded-2xl sm:p-4">
+                  <div className="flex items-start justify-between gap-2 sm:gap-3">
                     <div>
-                      <p className="font-bold text-slate-950">{item.productName}</p>
-                      <p className="mt-1 text-xs text-slate-500">{formatDate(item.addedAt || activeOrder.createdAt)} • Qty {item.quantity}</p>
+                      <p className="text-sm font-bold leading-5 text-slate-950 sm:text-base">{item.productName}</p>
+                      <p className="mt-0.5 text-[10px] text-slate-500 sm:mt-1 sm:text-xs">{formatDate(item.addedAt || activeOrder.createdAt)} • Qty {item.quantity}</p>
                     </div>
-                    <p className="font-bold text-slate-950">{formatCurrency(item.subtotal)}</p>
+                    <p className="text-sm font-bold text-slate-950 sm:text-base">{formatCurrency(item.subtotal)}</p>
                   </div>
-                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                    <span className={`rounded-full border px-2.5 py-1 font-bold capitalize ${getStatusPill(item.paymentStatus)}`}>
+                  <div className="mt-2 grid grid-cols-2 gap-1.5 text-[10px] sm:mt-3 sm:gap-2 sm:text-xs">
+                    <span className={`rounded-full border px-2 py-0.5 font-bold capitalize sm:px-2.5 sm:py-1 ${getStatusPill(item.paymentStatus)}`}>
                       {item.paymentStatus || 'unpaid'}
                     </span>
-                    <span className={`rounded-full border px-2.5 py-1 font-bold capitalize ${getStatusPill(item.fulfillmentStatus)}`}>
+                    <span className={`rounded-full border px-2 py-0.5 font-bold capitalize sm:px-2.5 sm:py-1 ${getStatusPill(item.fulfillmentStatus)}`}>
                       {item.fulfillmentStatus || 'pending'}
                     </span>
                   </div>
-                  <p className="mt-3 text-xs text-slate-500">{activeOrder.shippingAddress || 'No shipping address'}</p>
-                  <div className="mt-4 flex gap-2">
+                  <p className="mt-2 text-[10px] leading-4 text-slate-500 sm:mt-3 sm:text-xs">{activeOrder.shippingAddress || 'No shipping address'}</p>
+                  <div className="mt-2.5 flex gap-1.5 sm:mt-4 sm:gap-2">
                     <button
                       type="button"
                       onClick={() => openReplaceModal(item)}
                       disabled={lockedOrderStatuses.has(activeOrder.status)}
-                      className="flex-1 rounded-full border border-slate-200 px-3 py-2 text-center text-xs font-bold text-slate-700 disabled:cursor-not-allowed disabled:text-slate-300"
+                      className="flex-1 rounded-full border border-slate-200 px-2 py-1.5 text-center text-[10px] font-bold text-slate-700 disabled:cursor-not-allowed disabled:text-slate-300 sm:px-3 sm:py-2 sm:text-xs"
                     >
                       Change Product
                     </button>
@@ -507,7 +662,7 @@ const Orders = () => {
                       type="button"
                       onClick={() => handlePayItem(item)}
                       disabled={due <= 0 || payingItemId === item._id}
-                      className="flex-1 rounded-full bg-slate-950 px-3 py-2 text-xs font-bold text-white disabled:bg-slate-300"
+                      className="flex-1 rounded-full bg-slate-950 px-2 py-1.5 text-[10px] font-bold text-white disabled:bg-slate-300 sm:px-3 sm:py-2 sm:text-xs"
                     >
                       {due <= 0 ? 'Paid' : payingItemId === item._id ? 'Paying...' : 'Pay'}
                     </button>
@@ -515,35 +670,25 @@ const Orders = () => {
                 </div>
               );
             })}
-            {activeItems.length > 0 && (
-              <div className="rounded-2xl bg-slate-950 p-4 text-white">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-semibold">Total Amount</span>
-                  <span className="text-base font-bold">{formatCurrency(activeItemsTotalAmount)}</span>
-                </div>
-                <div className="mt-2 flex items-center justify-between gap-3 text-xs text-slate-300">
-                  <span>Remaining</span>
-                  <span>{formatCurrency(activeItemsRemainingBalance)}</span>
-                </div>
-              </div>
-            )}
           </div>
         </section>
 
-        <div className="mt-6 lg:hidden">
+        {previousSBAccountsSection}
+
+        <div className="mt-3 sm:mt-6 lg:hidden">
           <button
             type="button"
             onClick={() => {
               dispatch(fetchWalletRequest());
               setShowTransactionHistory(true);
             }}
-            className="flex w-full items-center justify-between rounded-3xl border border-slate-200 bg-white px-5 py-4 text-left shadow-sm"
+            className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-3 py-3 text-left shadow-sm sm:rounded-3xl sm:px-5 sm:py-4"
           >
             <span>
-              <span className="block text-sm font-bold text-slate-950">Transaction History</span>
-              <span className="mt-0.5 block text-xs text-slate-500">View deposits and product payments</span>
+              <span className="block text-xs font-bold text-slate-950 sm:text-sm">Transaction History</span>
+              <span className="mt-0.5 block text-[10px] text-slate-500 sm:text-xs">View deposits and product payments</span>
             </span>
-            <span className="rounded-full bg-slate-950 px-3 py-1.5 text-xs font-bold text-white">
+            <span className="rounded-full bg-slate-950 px-2.5 py-1 text-[10px] font-bold text-white sm:px-3 sm:py-1.5 sm:text-xs">
               Open
             </span>
           </button>
@@ -588,7 +733,7 @@ const Orders = () => {
                   {transactions.map((transaction) => (
                     <tr key={transaction._id}>
                       <td className="whitespace-nowrap px-3 py-4 text-slate-500">{transaction.date}</td>
-                      <td className="min-w-[280px] px-3 py-4 font-medium text-slate-800">{transaction.narration}</td>
+                      <td className="min-w-[280px] px-3 py-4 font-medium text-slate-800">{getTransactionNarration(transaction)}</td>
                       <td className="px-3 py-4">
                         <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${
                           transaction.direction === 'Debit' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
@@ -612,53 +757,53 @@ const Orders = () => {
       </div>
 
       {showTransactionHistory && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 p-3 lg:hidden">
-          <div className="flex max-h-full min-h-full flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
-            <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
+        <div className="fixed inset-0 z-50 bg-slate-950/60 p-2 sm:p-3 lg:hidden">
+          <div className="flex max-h-full min-h-full flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:rounded-3xl">
+            <div className="flex items-start justify-between gap-2 border-b border-slate-100 px-3 py-3 sm:gap-3 sm:px-5 sm:py-4">
               <div>
-                <h2 className="text-lg font-bold text-slate-950">Statement of Account</h2>
-                <p className="mt-1 text-xs text-slate-500">Deposits and product payments</p>
+                <h2 className="text-base font-bold text-slate-950 sm:text-lg">Statement of Account</h2>
+                <p className="mt-0.5 text-[10px] text-slate-500 sm:mt-1 sm:text-xs">Deposits and product payments</p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowTransactionHistory(false)}
-                className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700"
+                className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-700 sm:px-3 sm:py-1.5 sm:text-xs"
               >
                 Close
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4">
+            <div className="flex-1 overflow-y-auto p-2.5 sm:p-4">
               {walletLoading ? (
-                <div className="rounded-2xl border border-dashed border-slate-200 py-10 text-center text-sm text-slate-500">
+                <div className="rounded-xl border border-dashed border-slate-200 py-8 text-center text-xs text-slate-500 sm:rounded-2xl sm:py-10 sm:text-sm">
                   Loading statement...
                 </div>
               ) : transactions.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-200 py-10 text-center text-sm text-slate-500">
+                <div className="rounded-xl border border-dashed border-slate-200 py-8 text-center text-xs text-slate-500 sm:rounded-2xl sm:py-10 sm:text-sm">
                   No transactions yet.
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   {transactions.map((transaction) => (
-                    <div key={transaction._id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                      <div className="flex items-start justify-between gap-3">
+                    <div key={transaction._id} className="rounded-xl border border-slate-100 bg-slate-50 p-2.5 sm:rounded-2xl sm:p-4">
+                      <div className="flex items-start justify-between gap-2 sm:gap-3">
                         <div className="min-w-0">
-                          <p className="break-words text-sm font-bold text-slate-900">{transaction.narration}</p>
-                          <p className="mt-1 text-xs text-slate-500">{transaction.date}</p>
+                          <p className="break-words text-xs font-bold text-slate-900 sm:text-sm">{getTransactionNarration(transaction)}</p>
+                          <p className="mt-0.5 text-[10px] text-slate-500 sm:mt-1 sm:text-xs">{transaction.date}</p>
                         </div>
-                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold sm:px-2.5 sm:py-1 sm:text-xs ${
                           transaction.direction === 'Debit' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
                         }`}>
                           {transaction.direction}
                         </span>
                       </div>
-                      <div className="mt-4 flex items-center justify-between gap-3">
-                        <span className={`text-base font-bold ${
+                      <div className="mt-2.5 flex items-center justify-between gap-2 sm:mt-4 sm:gap-3">
+                        <span className={`text-sm font-bold sm:text-base ${
                           transaction.direction === 'Debit' ? 'text-rose-600' : 'text-emerald-600'
                         }`}>
                           {transaction.direction === 'Debit' ? '-' : '+'}{formatCurrency(transaction.amount)}
                         </span>
-                        <span className="text-xs font-semibold text-slate-500">
+                        <span className="text-[10px] font-semibold text-slate-500 sm:text-xs">
                           Bal: {formatCurrency(transaction.balance)}
                         </span>
                       </div>

@@ -1,20 +1,69 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { verifyWalletFundingRequest } from '../redux/slices/walletSlice';
+import { API_URL, getAuthHeader } from '../utils/api';
+import axios from 'axios';
 
 const WalletPaymentVerify = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const reference = searchParams.get('reference');
-  const { verifying, verifyError } = useSelector((state) => state.wallet);
+  const { verifying, verifyError, fundingVerified, lastFundingResult } = useSelector((state) => state.wallet);
+  const [autoPayError, setAutoPayError] = useState('');
+  const [completingAutoPay, setCompletingAutoPay] = useState(false);
 
   useEffect(() => {
     if (reference) {
-      dispatch(verifyWalletFundingRequest({ reference, navigate }));
+      dispatch(verifyWalletFundingRequest({ reference, navigate, navigateAfterVerify: false }));
     }
   }, [dispatch, navigate, reference]);
+
+  useEffect(() => {
+    if (!fundingVerified || !lastFundingResult) return;
+
+    let pendingAutoPay = null;
+    try {
+      pendingAutoPay = JSON.parse(localStorage.getItem('pendingWalletAutoPay') || 'null');
+    } catch {
+      pendingAutoPay = null;
+    }
+
+    const finish = (orderNumber = '') => {
+      localStorage.removeItem('pendingWalletAutoPay');
+      navigate(orderNumber ? `/orders?orderNumber=${orderNumber}` : '/orders');
+    };
+
+    if (!pendingAutoPay?.orderNumber || !pendingAutoPay?.itemId) {
+      finish(lastFundingResult.autoPaidOrder?.orderNumber || '');
+      return;
+    }
+
+    if (lastFundingResult.autoPaidOrder && !lastFundingResult.autoPayError) {
+      finish(pendingAutoPay.orderNumber);
+      return;
+    }
+
+    const completeAutoPay = async () => {
+      setCompletingAutoPay(true);
+      setAutoPayError('');
+      try {
+        await axios.post(
+          `${API_URL}/api/ecommerce/orders/number/${pendingAutoPay.orderNumber}/items/${pendingAutoPay.itemId}/pay-wallet`,
+          {},
+          { headers: getAuthHeader() }
+        );
+        finish(pendingAutoPay.orderNumber);
+      } catch (error) {
+        setAutoPayError(error.response?.data?.message || lastFundingResult.autoPayError || 'Wallet funded, but product payment could not be completed.');
+      } finally {
+        setCompletingAutoPay(false);
+      }
+    };
+
+    completeAutoPay();
+  }, [fundingVerified, lastFundingResult, navigate]);
 
   if (!reference) {
     return (
@@ -50,6 +99,23 @@ const WalletPaymentVerify = () => {
     );
   }
 
+  if (autoPayError) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4">
+        <div className="bg-white rounded-xl shadow p-8 max-w-md w-full text-center">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Wallet Funded</h2>
+          <p className="text-gray-600 mb-6">{autoPayError}</p>
+          <button
+            onClick={() => navigate('/orders')}
+            className="px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-full text-sm font-medium"
+          >
+            Back to Orders
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4">
       <div className="bg-white rounded-xl shadow p-8 max-w-md w-full text-center">
@@ -61,7 +127,11 @@ const WalletPaymentVerify = () => {
         </div>
         <h2 className="text-xl font-semibold text-gray-900 mb-2">Verifying Wallet Funding</h2>
         <p className="text-gray-600">
-          {verifying ? 'Please wait while we update your wallet balance.' : 'Finalizing your wallet payment.'}
+          {verifying
+            ? 'Please wait while we update your wallet balance.'
+            : completingAutoPay
+              ? 'Wallet funded. Completing your product payment.'
+              : 'Finalizing your wallet payment.'}
         </p>
         <p className="text-sm text-gray-400 mt-4">Reference: {reference}</p>
       </div>

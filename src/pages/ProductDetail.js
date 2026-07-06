@@ -71,7 +71,6 @@ const ProductDetail = () => {
   const [buyNowLGA, setBuyNowLGA] = useState('');
   const [buyNowTown, setBuyNowTown] = useState('');
   const [buyNowEmail, setBuyNowEmail] = useState('');
-  const [showBuyNowAddressForm, setShowBuyNowAddressForm] = useState(false);
 
   // SureBank pickup locations
   const pickupLocations = [
@@ -128,7 +127,10 @@ const ProductDetail = () => {
     if (isAuthenticated && customer?.address && !deliveryAddress) {
       setDeliveryAddress(customer.address);
     }
-  }, [isAuthenticated, customer, deliveryAddress]);
+    if (isAuthenticated && customer?.address && !buyNowAddress) {
+      setBuyNowAddress(customer.address);
+    }
+  }, [isAuthenticated, customer, deliveryAddress, buyNowAddress]);
 
   // Clear auth error when modal closes
   useEffect(() => {
@@ -884,37 +886,9 @@ const ProductDetail = () => {
             {/* Home Delivery Address Form */}
             {deliveryMethod === 'home' && (
               <div className="space-y-3">
-                {!showBuyNowAddressForm && (isAuthenticated && customer?.address) ? (
+                {isAuthenticated && customer?.address ? (
                   <div className="bg-gray-50 rounded-lg p-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-200 text-gray-600 text-xs rounded-full">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                        </svg>
-                        Not verified
-                      </span>
-                    </div>
                     <p className="text-sm text-gray-700">{customer.address}</p>
-                    {customer.phone && (
-                      <p className="text-sm text-gray-500 mt-1">{customer.phone}</p>
-                    )}
-                    <div className="flex gap-2 mt-3">
-                      <button
-                        onClick={() => {
-                          setBuyNowAddress(customer.address || '');
-                        }}
-                        className="text-xs text-orange-500 hover:text-orange-600 font-medium"
-                      >
-                        Use this address
-                      </button>
-                      <span className="text-gray-300">|</span>
-                      <button
-                        onClick={() => setShowBuyNowAddressForm(true)}
-                        className="text-xs text-gray-500 hover:text-orange-500"
-                      >
-                        Enter new address
-                      </button>
-                    </div>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -966,19 +940,11 @@ const ProductDetail = () => {
                         ))}
                       </select>
                     )}
-                    {isAuthenticated && customer?.address && (
-                      <button
-                        onClick={() => setShowBuyNowAddressForm(false)}
-                        className="text-xs text-gray-500 hover:text-orange-500"
-                      >
-                        ← Use saved address
-                      </button>
-                    )}
                   </div>
                 )}
 
                 {/* Show selected address */}
-                {buyNowAddress && (
+                {buyNowAddress && !(isAuthenticated && customer?.address) && (
                   <div className="bg-green-50 rounded-lg p-3 border border-green-200">
                     <div className="flex items-center gap-2 mb-1">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1182,14 +1148,6 @@ const ProductDetail = () => {
 
                 {!deliveryAddress ? (
                   <>
-                    <div className="mt-2">
-                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                        </svg>
-                        Not verified
-                      </span>
-                    </div>
                     <button
                       onClick={() => setShowAddressInput(true)}
                       className="text-xs text-gray-500 mt-2 hover:text-orange-500"
@@ -1199,21 +1157,7 @@ const ProductDetail = () => {
                   </>
                 ) : (
                   <div className="mt-2">
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-600 text-xs rounded-full">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        Verified
-                      </span>
-                    </div>
                     <p className="text-sm text-gray-600 mt-2">{deliveryAddress}</p>
-                    <button
-                      onClick={() => setShowAddressInput(true)}
-                      className="text-xs text-orange-500 mt-1 hover:text-orange-600"
-                    >
-                      Change address
-                    </button>
                   </div>
                 )}
               </div>
@@ -1849,9 +1793,9 @@ const ProductDetail = () => {
               <div className="px-4 pb-4">
                 {!showNewAddressForm ? (
                   <>
-                    <h2 className="text-xl font-bold text-gray-900">Please select or enter a new delivery address.</h2>
+                    <h2 className="text-xl font-bold text-gray-900">Delivery Address</h2>
                     <p className="text-sm text-gray-500 mt-1">
-                      Choose a saved address or add a new one.
+                      Your saved address will be used for this order.
                     </p>
 
                     {/* Saved Address Card */}
@@ -1859,47 +1803,11 @@ const ProductDetail = () => {
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-medium text-gray-700">Delivery Address</span>
                       </div>
-                      <div className="mb-3">
-                        <span className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                          </svg>
-                          Not verified
-                        </span>
-                      </div>
                       <p className="text-sm text-gray-700">
                         {customer?.address || deliveryAddress || 'No address saved'}
-                        {customer?.phone && `. ${customer.phone}`}
                       </p>
-                      {customer?.firstName && (
-                        <p className="text-sm text-gray-500 mt-1">
-                          {customer.firstName} {customer.lastName}
-                        </p>
-                      )}
-
-                      {/* Select this address button */}
-                      {(customer?.address || deliveryAddress) && (
-                        <button
-                          onClick={() => {
-                            if (customer?.address) {
-                              setDeliveryAddress(customer.address);
-                            }
-                            setShowAddressInput(false);
-                          }}
-                          className="mt-3 text-sm text-orange-500 hover:text-orange-600 font-medium"
-                        >
-                          Use this address
-                        </button>
-                      )}
                     </div>
 
-                    {/* Add New Address Button */}
-                    <button
-                      onClick={() => setShowNewAddressForm(true)}
-                      className="w-full mt-4 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-full text-sm font-medium"
-                    >
-                      Add new address
-                    </button>
                   </>
                 ) : (
                   <>

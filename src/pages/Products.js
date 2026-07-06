@@ -175,9 +175,6 @@ const Products = () => {
             <h1 className="text-2xl font-bold">
               {currentCategory ? currentCategory.name : 'All Products'}
             </h1>
-            <p className="text-gray-600">
-              {products.length} product{products.length !== 1 ? 's' : ''} found
-            </p>
             {currentCategory && subCategories.length > 0 && (
               <div className="mt-4 flex flex-wrap gap-2">
                 <button

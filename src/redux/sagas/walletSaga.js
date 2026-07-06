@@ -77,7 +77,7 @@ function* verifyWalletFundingSaga(action) {
 
     yield put(verifyWalletFundingSuccess(response.data));
 
-    if (navigate) {
+    if (navigate && action.payload.navigateAfterVerify !== false) {
       navigate('/orders');
     }
   } catch (error) {
