@@ -604,7 +604,7 @@ const Orders = () => {
                             type="button"
                             onClick={() => handlePayItem(item)}
                             disabled={due <= 0 || payingItemId === item._id}
-                            className="rounded-full bg-slate-950 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                            className="rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
                           >
                             {due <= 0 ? 'Paid' : payingItemId === item._id ? 'Paying...' : `Pay ${formatCurrency(due)}`}
                           </button>
@@ -662,7 +662,7 @@ const Orders = () => {
                       type="button"
                       onClick={() => handlePayItem(item)}
                       disabled={due <= 0 || payingItemId === item._id}
-                      className="flex-1 rounded-full bg-slate-950 px-2 py-1.5 text-[10px] font-bold text-white disabled:bg-slate-300 sm:px-3 sm:py-2 sm:text-xs"
+                      className="flex-1 rounded-full bg-emerald-600 px-2 py-1.5 text-[10px] font-bold text-white hover:bg-emerald-700 disabled:bg-emerald-300 sm:px-3 sm:py-2 sm:text-xs"
                     >
                       {due <= 0 ? 'Paid' : payingItemId === item._id ? 'Paying...' : 'Pay'}
                     </button>
