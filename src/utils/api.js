@@ -1,5 +1,5 @@
-const REMOTE_API_URL = 'https://surebank-backend.onrender.com';
 const LOCAL_API_URL = 'http://localhost:8080';
+const PRODUCTION_API_URL = '';
 
 const isLocalhostUrl = (value = '') => /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(value);
 const isLocalBrowser = () => {
@@ -12,7 +12,7 @@ const getDefaultApiUrl = () => {
     return LOCAL_API_URL;
   }
 
-  return REMOTE_API_URL;
+  return PRODUCTION_API_URL;
 };
 
 const getConfiguredApiUrl = () => {
@@ -22,7 +22,7 @@ const getConfiguredApiUrl = () => {
   }
 
   if (!isLocalBrowser() && isLocalhostUrl(configuredUrl)) {
-    return REMOTE_API_URL;
+    return PRODUCTION_API_URL;
   }
 
   return configuredUrl;

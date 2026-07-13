@@ -33,6 +33,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  const requestUrl = new URL(event.request.url);
+  if (requestUrl.pathname.startsWith('/api/') || requestUrl.origin !== self.location.origin) {
+    return;
+  }
+
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
@@ -61,8 +66,7 @@ self.addEventListener('fetch', (event) => {
           const responseClone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
           return response;
-        })
-        .catch(() => caches.match('/'));
+        });
     })
   );
 });
