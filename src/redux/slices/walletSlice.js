@@ -3,6 +3,8 @@ import { createSlice } from '@reduxjs/toolkit';
 const initialState = {
   customer: null,
   account: null,
+  dsAccounts: [],
+  dsTransactions: [],
   transactions: [],
   loading: false,
   error: null,
@@ -27,6 +29,8 @@ const walletSlice = createSlice({
       state.loading = false;
       state.customer = action.payload.customer;
       state.account = action.payload.account;
+      state.dsAccounts = action.payload.dsAccounts || [];
+      state.dsTransactions = action.payload.dsTransactions || [];
       state.transactions = action.payload.transactions || [];
     },
     fetchWalletFailure: (state, action) => {
@@ -57,6 +61,8 @@ const walletSlice = createSlice({
       state.verifying = false;
       state.fundingVerified = true;
       state.account = action.payload.account;
+      state.dsAccounts = action.payload.dsAccounts || state.dsAccounts || [];
+      state.dsTransactions = action.payload.dsTransactions || state.dsTransactions || [];
       state.transactions = action.payload.transactions || [];
       state.lastFundingResult = action.payload;
     },

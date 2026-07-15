@@ -538,13 +538,13 @@ const Orders = () => {
                   </p>
                   <Link
                     to="/products"
-                    className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-emerald-600 px-6 py-4 text-base font-extrabold text-white shadow-sm transition hover:bg-emerald-700 sm:w-auto"
+                    className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-orange-500 px-6 py-4 text-base font-extrabold text-white shadow-sm transition hover:bg-orange-600 sm:w-auto"
                   >
                     Start Shopping
                   </Link>
                 </div>
                 <div className="border-t border-slate-100 bg-slate-950 px-6 py-7 text-white lg:border-l lg:border-t-0">
-                  <p className="text-sm font-semibold uppercase tracking-wide text-emerald-300">Next step</p>
+                  <p className="text-sm font-semibold uppercase tracking-wide text-orange-300">Next step</p>
                   <div className="mt-4 space-y-4 text-sm text-slate-200">
                     <div>
                       <p className="font-bold text-white">1. Pick product or products</p>
@@ -568,7 +568,7 @@ const Orders = () => {
               <p className="mt-2 text-sm text-slate-500">
                 Select a product to create your current Sure-Bank Stores order account.
               </p>
-              <Link to="/products" className="mt-6 inline-flex rounded-full bg-emerald-600 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-700">
+              <Link to="/products" className="mt-6 inline-flex rounded-full bg-orange-500 px-5 py-3 text-sm font-semibold text-white hover:bg-orange-600">
                 Start Shopping
               </Link>
             </div>
@@ -580,18 +580,24 @@ const Orders = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-100">
       <div className="mx-auto max-w-7xl px-3 py-4 sm:px-6 sm:py-8 lg:px-8">
-        <div className="mb-3 flex flex-col gap-2 sm:mb-6 sm:gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h1 className="mt-1 text-xl font-bold text-slate-950 sm:mt-2 sm:text-3xl">My Orders</h1>
-            <p className="mt-1 max-w-2xl rounded-xl bg-emerald-50 px-3 py-2 text-xs font-extrabold leading-5 text-emerald-700 ring-1 ring-emerald-100 sm:mt-2 sm:bg-transparent sm:px-0 sm:py-0 sm:text-sm sm:font-medium sm:text-slate-600 sm:ring-0">
+        <div className="mb-3 overflow-hidden rounded-2xl bg-slate-950 text-white shadow-sm sm:mb-6 sm:rounded-3xl">
+          <div className="relative p-4 sm:p-6">
+            <div className="absolute right-0 top-0 h-28 w-28 rounded-bl-full bg-orange-500/20 sm:h-40 sm:w-40" />
+            <div className="relative flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div className="min-w-0">
+                <p className="text-xs font-black uppercase text-orange-300">Sure-Bank Stores</p>
+                <h1 className="mt-1 text-2xl font-black text-white sm:text-3xl">My Orders</h1>
+                <p className="mt-2 max-w-3xl rounded-2xl bg-white/10 px-3 py-2 text-xs font-bold leading-5 text-orange-50 ring-1 ring-white/10 sm:text-sm">
               Thank you Dear {customerName}, our desire is to provide all your needs, feel free to search, browse or ask us on whatsapp
-            </p>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm sm:rounded-2xl sm:px-4 sm:py-3">
-            <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500 sm:text-xs">SB Account</p>
-            <p className="mt-0.5 text-sm font-bold text-slate-900 sm:mt-1 sm:text-lg">{activeOrder.SBAccountNumber || 'Pending'}</p>
+                </p>
+              </div>
+              <div className="min-w-0 rounded-2xl bg-white/10 px-4 py-3 text-sm ring-1 ring-white/10">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-300 sm:text-xs">SB Account</p>
+                <p className="mt-0.5 truncate text-base font-black text-white sm:text-lg">{activeOrder.SBAccountNumber || 'Pending'}</p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -610,24 +616,24 @@ const Orders = () => {
         <div className="grid gap-3 sm:gap-5 lg:grid-cols-[1.3fr,0.7fr]">
           <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:rounded-3xl sm:p-6">
             <div className="grid gap-2 sm:gap-4 md:grid-cols-2">
-              <div className="rounded-xl bg-purple-700 p-3 text-purple-50 sm:rounded-2xl sm:p-4">
+              <div className="rounded-xl bg-purple-700 p-3 text-purple-50 shadow-sm sm:rounded-2xl sm:p-4">
                 <p className="text-[10px] font-medium uppercase tracking-wide text-purple-200 sm:text-xs">Wallet Balance</p>
                 <p className="mt-1 text-lg font-bold sm:mt-2 sm:text-2xl">{formatCurrency(walletBalance)}</p>
               </div>
-              <div className="rounded-xl bg-amber-50 p-3 sm:rounded-2xl sm:p-4">
+              <div className="rounded-xl border border-orange-100 bg-orange-50 p-3 sm:rounded-2xl sm:p-4">
                 <p className="text-[10px] font-medium uppercase tracking-wide text-amber-700 sm:text-xs">Remaining Balance</p>
-                <p className="mt-1 text-lg font-bold text-amber-900 sm:mt-2 sm:text-2xl">{formatCurrency(remainingBalance)}</p>
+                <p className="mt-1 text-lg font-bold text-orange-950 sm:mt-2 sm:text-2xl">{formatCurrency(remainingBalance)}</p>
               </div>
             </div>
 
             <div className="mt-3 sm:mt-6">
               <div className="mb-1.5 flex items-center justify-between gap-3 sm:mb-2 sm:gap-4">
                 <p className="text-xs font-semibold text-slate-800 sm:text-sm">Payment Progress</p>
-                <p className="text-xs font-bold text-emerald-700 sm:text-sm">{progress}%</p>
+                <p className="text-xs font-bold text-purple-700 sm:text-sm">{progress}%</p>
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-slate-100 sm:h-3">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-sky-500 to-amber-400"
+                  className="h-full rounded-full bg-gradient-to-r from-orange-500 via-purple-600 to-emerald-500"
                   style={{ width: `${progress}%` }}
                 />
               </div>
@@ -660,7 +666,7 @@ const Orders = () => {
             </button>
           </div>
 
-          <aside className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:rounded-3xl sm:p-6">
+          <aside className="rounded-2xl border border-orange-100 bg-white p-3 shadow-sm sm:rounded-3xl sm:p-6">
             <h2 className="text-base font-bold text-slate-950 sm:text-lg">Deposit to Wallet</h2>
             <p className="mt-0.5 text-xs text-slate-500 sm:mt-1 sm:text-sm">Fund your wallet with Paystack, then pay for any product row.</p>
             <form className="mt-3 space-y-2 sm:mt-5 sm:space-y-3" onSubmit={handleFundWallet}>
@@ -671,13 +677,13 @@ const Orders = () => {
                 value={depositAmount}
                 onChange={(event) => setDepositAmount(event.target.value)}
                 placeholder="Amount"
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm"
+                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm"
                 required
               />
               <button
                 type="submit"
                 disabled={fundingLoading}
-                className="w-full rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm"
+                className="w-full rounded-xl bg-orange-500 px-3 py-2 text-xs font-black text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-orange-300 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm"
               >
                 {fundingLoading ? 'Redirecting...' : 'Deposit'}
               </button>
@@ -685,8 +691,8 @@ const Orders = () => {
           </aside>
         </div>
 
-        <section className="mt-3 rounded-2xl border border-slate-200 bg-white shadow-sm sm:mt-6 sm:rounded-3xl">
-          <div className="border-b border-slate-100 px-3 py-3 sm:px-6 sm:py-4">
+        <section className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm sm:mt-6 sm:rounded-3xl">
+          <div className="border-b border-slate-100 bg-white px-3 py-3 sm:px-6 sm:py-4">
             <h2 className="text-base font-bold text-slate-950 sm:text-lg">Products Under This Order</h2>
             <p className="mt-0.5 text-xs text-slate-500 sm:mt-1 sm:text-sm">Pay, replace, and track collection status per product.</p>
           </div>
@@ -750,7 +756,7 @@ const Orders = () => {
                             type="button"
                             onClick={() => openReplaceModal(item)}
                             disabled={lockedOrderStatuses.has(activeOrder.status)}
-                            className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:border-emerald-400 hover:text-emerald-700 disabled:cursor-not-allowed disabled:border-slate-100 disabled:text-slate-300"
+                            className="rounded-full border border-purple-200 bg-purple-50 px-3 py-1.5 text-xs font-bold text-purple-700 hover:border-purple-400 hover:bg-purple-100 disabled:cursor-not-allowed disabled:border-slate-100 disabled:bg-white disabled:text-slate-300"
                           >
                             Change Product
                           </button>
@@ -758,7 +764,7 @@ const Orders = () => {
                             type="button"
                             onClick={() => handlePayItem(item)}
                             disabled={due <= 0 || payingItemId === item._id}
-                            className="rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
+                            className="rounded-full bg-orange-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-orange-300"
                           >
                             {due <= 0 ? 'Paid' : payingItemId === item._id ? 'Paying...' : `Pay ${formatCurrency(due)}`}
                           </button>
@@ -769,7 +775,7 @@ const Orders = () => {
                 })}
               </tbody>
               <tfoot>
-                <tr className="bg-slate-50 text-sm font-bold text-slate-950">
+                <tr className="bg-orange-50 text-sm font-bold text-slate-950">
                   <td className="px-5 py-4" colSpan="6">Total Amount</td>
                   <td className="px-5 py-4">{formatCurrency(activeItemsTotalAmount)}</td>
                   <td className="px-5 py-4" colSpan="2"></td>
@@ -787,7 +793,7 @@ const Orders = () => {
               const due = Math.max(0, Number(item.subtotal || 0) - Number(item.paidAmount || 0));
               const fulfillmentDisplay = getItemFulfillmentDisplay(item);
               return (
-                <div key={item._id} className="rounded-xl border border-slate-100 bg-slate-50 p-2.5 sm:rounded-2xl sm:p-4">
+                <div key={item._id} className="rounded-xl border border-slate-100 bg-white p-2.5 shadow-sm sm:rounded-2xl sm:p-4">
                   <div className="flex items-start justify-between gap-2 sm:gap-3">
                     <div>
                       <p className="text-sm font-bold leading-5 text-slate-950 sm:text-base">{item.productName}</p>
@@ -809,7 +815,7 @@ const Orders = () => {
                       type="button"
                       onClick={() => openReplaceModal(item)}
                       disabled={lockedOrderStatuses.has(activeOrder.status)}
-                      className="flex-1 rounded-full border border-slate-200 px-2 py-1.5 text-center text-[10px] font-bold text-slate-700 disabled:cursor-not-allowed disabled:text-slate-300 sm:px-3 sm:py-2 sm:text-xs"
+                      className="flex-1 rounded-full border border-purple-200 bg-purple-50 px-2 py-1.5 text-center text-[10px] font-bold text-purple-700 disabled:cursor-not-allowed disabled:bg-white disabled:text-slate-300 sm:px-3 sm:py-2 sm:text-xs"
                     >
                       Change Product
                     </button>
@@ -817,7 +823,7 @@ const Orders = () => {
                       type="button"
                       onClick={() => handlePayItem(item)}
                       disabled={due <= 0 || payingItemId === item._id}
-                      className="flex-1 rounded-full bg-emerald-600 px-2 py-1.5 text-[10px] font-bold text-white hover:bg-emerald-700 disabled:bg-emerald-300 sm:px-3 sm:py-2 sm:text-xs"
+                      className="flex-1 rounded-full bg-orange-500 px-2 py-1.5 text-[10px] font-bold text-white hover:bg-orange-600 disabled:bg-orange-300 sm:px-3 sm:py-2 sm:text-xs"
                     >
                       {due <= 0 ? 'Paid' : payingItemId === item._id ? 'Paying...' : 'Pay'}
                     </button>
@@ -839,7 +845,7 @@ const Orders = () => {
             <button
               type="button"
               onClick={() => dispatch(fetchWalletRequest())}
-              className="rounded-full border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:border-emerald-400 hover:text-emerald-700"
+              className="rounded-full border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:border-orange-400 hover:text-orange-600"
             >
               Refresh
             </button>

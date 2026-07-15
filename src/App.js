@@ -23,6 +23,7 @@ import OrderConfirmation from './pages/OrderConfirmation';
 import PaymentVerify from './pages/PaymentVerify';
 import Wallet from './pages/Wallet';
 import WalletPaymentVerify from './pages/WalletPaymentVerify';
+import MyDS from './pages/MyDS';
 import Account from './pages/Account';
 import TermsAndConditions from './pages/TermsAndConditions';
 import ForgotPassword from './pages/ForgotPassword';
@@ -38,7 +39,8 @@ const Layout = ({ children }) => {
     isProductDetailPage ||
     location.pathname === '/products' ||
     location.pathname.startsWith('/products/category/') ||
-    location.pathname === '/orders'
+    location.pathname === '/orders' ||
+    location.pathname === '/my-ds'
   );
 
   // Only hide header/footer on payment verification page
@@ -81,6 +83,7 @@ function AppRoutes() {
         <Route path="/register" element={<Register />} />
         <Route path="/orders" element={<Orders />} />
         <Route path="/wallet" element={<Wallet />} />
+        <Route path="/my-ds" element={<MyDS />} />
         <Route path="/account" element={<Account />} />
         <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
         <Route path="/order-confirmation/:orderNumber" element={<OrderConfirmation />} />

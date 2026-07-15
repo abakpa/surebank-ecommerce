@@ -39,6 +39,16 @@ const MobileBottomNav = () => {
       ),
     },
     {
+      label: 'My DS',
+      to: '/my-ds',
+      match: (pathname) => pathname.startsWith('/my-ds'),
+      icon: (
+        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v18m5-15.5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6" />
+        </svg>
+      ),
+    },
+    {
       label: 'account',
       to: '/account',
       match: (pathname) => pathname.startsWith('/account') || pathname.startsWith('/login') || pathname.startsWith('/register'),
@@ -52,7 +62,7 @@ const MobileBottomNav = () => {
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgba(15,23,42,0.08)] md:hidden">
-      <div className="grid h-16 grid-cols-4">
+      <div className="grid h-16 grid-cols-5">
         {items.map((item) => {
           const active = item.match(location.pathname);
           return (

@@ -43,10 +43,14 @@ function* fetchWalletSaga() {
 function* initializeWalletFundingSaga(action) {
   const { fundingData, onSuccess, onError } = action.payload;
   try {
+    const endpoint = fundingData?.fundingType === 'ds_package'
+      ? `${API_URL}/api/ecommerce/auth/wallet/ds-package/fund/initialize`
+      : `${API_URL}/api/ecommerce/auth/wallet/fund/initialize`;
+    const { fundingType, ...requestData } = fundingData || {};
     const response = yield call(
       axios.post,
-      `${API_URL}/api/ecommerce/auth/wallet/fund/initialize`,
-      fundingData,
+      endpoint,
+      requestData,
       { headers: getAuthHeader() }
     );
 

@@ -78,6 +78,9 @@ const Header = () => {
                 <Link to="/orders" className="text-gray-700 hover:text-primary-600">
                   My Orders
                 </Link>
+                <Link to="/my-ds" className="text-gray-700 hover:text-primary-600">
+                  My DS
+                </Link>
                 <Link to="/account" className="text-gray-700 hover:text-primary-600">
                   Account
                 </Link>
@@ -196,6 +199,8 @@ const Header = () => {
               {isAuthenticated ? (
                 <>
                   <Link to="/orders" className="text-gray-700" onClick={handleMobileClose}>My Orders</Link>
+                  <Link to="/my-ds" className="text-gray-700" onClick={handleMobileClose}>My DS</Link>
+                  <Link to="/account" className="text-gray-700" onClick={handleMobileClose}>Account</Link>
                   <button onClick={handleLogout} className="text-left text-gray-700">Logout</button>
                 </>
               ) : (

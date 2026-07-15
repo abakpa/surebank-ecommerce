@@ -32,6 +32,12 @@ const WalletPaymentVerify = () => {
 
     const finish = (orderNumber = '', message = 'Wallet deposit successful. Your wallet balance has been updated.') => {
       localStorage.removeItem('pendingWalletAutoPay');
+      if (lastFundingResult.paymentType === 'ds_package') {
+        navigate('/my-ds', {
+          state: { message: 'DS package deposit successful. Your contribution has been updated.' }
+        });
+        return;
+      }
       navigate(orderNumber ? `/orders?orderNumber=${orderNumber}` : '/orders', {
         state: { message }
       });
@@ -132,10 +138,10 @@ const WalletPaymentVerify = () => {
         <h2 className="text-xl font-semibold text-gray-900 mb-2">Verifying Wallet Funding</h2>
         <p className="text-gray-600">
           {verifying
-            ? 'Please wait while we update your wallet balance.'
+            ? 'Please wait while we confirm your payment.'
             : completingAutoPay
               ? 'Wallet funded. Completing your product payment.'
-              : 'Finalizing your wallet payment.'}
+              : 'Finalizing your payment.'}
         </p>
         <p className="text-sm text-gray-400 mt-4">Reference: {reference}</p>
       </div>
