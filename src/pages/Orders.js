@@ -99,18 +99,6 @@ const MobileVariationDropdown = ({ value, options, onChange }) => {
   );
 };
 
-const inlineComputedStyles = (source, target) => {
-  const computedStyle = window.getComputedStyle(source);
-  target.setAttribute('style', computedStyle.cssText);
-
-  Array.from(source.children).forEach((sourceChild, index) => {
-    const targetChild = target.children[index];
-    if (targetChild) {
-      inlineComputedStyles(sourceChild, targetChild);
-    }
-  });
-};
-
 const blobToDataUrl = (blob) => new Promise((resolve, reject) => {
   const reader = new FileReader();
   reader.onloadend = () => resolve(reader.result);
@@ -118,72 +106,183 @@ const blobToDataUrl = (blob) => new Promise((resolve, reject) => {
   reader.readAsDataURL(blob);
 });
 
-const embedImagesAsDataUrls = async (element) => {
-  const images = Array.from(element.querySelectorAll('img'));
-  await Promise.all(images.map(async (image) => {
-    const source = image.getAttribute('src');
-    if (!source || source.startsWith('data:')) return;
+const wrapCanvasText = (context, text, x, y, maxWidth, lineHeight, maxLines = 3) => {
+  const words = String(text || '').split(/\s+/).filter(Boolean);
+  const lines = [];
+  let line = '';
 
-    try {
-      const response = await fetch(source, { mode: 'cors' });
-      if (!response.ok) throw new Error('Image fetch failed');
-      const blob = await response.blob();
-      image.setAttribute('src', await blobToDataUrl(blob));
-      image.removeAttribute('crossorigin');
-    } catch (error) {
-      image.removeAttribute('src');
-      image.setAttribute('alt', image.getAttribute('alt') || 'Signature unavailable for image export');
+  words.forEach((word) => {
+    const testLine = line ? `${line} ${word}` : word;
+    if (context.measureText(testLine).width > maxWidth && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = testLine;
     }
-  }));
+  });
+  if (line) lines.push(line);
+
+  lines.slice(0, maxLines).forEach((currentLine, index) => {
+    context.fillText(index === maxLines - 1 && lines.length > maxLines ? `${currentLine}...` : currentLine, x, y + (index * lineHeight));
+  });
+
+  return Math.min(lines.length, maxLines) * lineHeight;
 };
 
-const captureReceiptAsBlob = async (element) => {
-  if (!element) {
-    throw new Error('Receipt is not ready to share.');
-  }
-
-  const clone = element.cloneNode(true);
-  inlineComputedStyles(element, clone);
-  clone.querySelectorAll('[data-receipt-actions="true"]').forEach((node) => node.remove());
-  clone.style.maxHeight = 'none';
-  clone.style.overflow = 'visible';
-  await embedImagesAsDataUrls(clone);
-
-  const width = Math.ceil(element.scrollWidth);
-  const height = Math.ceil(element.scrollHeight);
-  const serialized = new XMLSerializer().serializeToString(clone);
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
-      <foreignObject width="100%" height="100%">${serialized}</foreignObject>
-    </svg>
-  `;
-  const imageUrl = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));
-
-  try {
-    const image = new Image();
-    await new Promise((resolve, reject) => {
-      image.onload = resolve;
-      image.onerror = reject;
-      image.src = imageUrl;
-    });
-
-    const canvas = document.createElement('canvas');
-    canvas.width = width * 2;
-    canvas.height = height * 2;
-    const context = canvas.getContext('2d');
-    context.fillStyle = '#ffffff';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.scale(2, 2);
-    context.drawImage(image, 0, 0);
-
-    return await new Promise((resolve) => canvas.toBlob(resolve, 'image/png', 1));
-  } finally {
-    URL.revokeObjectURL(imageUrl);
-  }
+const drawRoundRect = (context, x, y, width, height, radius) => {
+  context.beginPath();
+  context.moveTo(x + radius, y);
+  context.lineTo(x + width - radius, y);
+  context.quadraticCurveTo(x + width, y, x + width, y + radius);
+  context.lineTo(x + width, y + height - radius);
+  context.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  context.lineTo(x + radius, y + height);
+  context.quadraticCurveTo(x, y + height, x, y + height - radius);
+  context.lineTo(x, y + radius);
+  context.quadraticCurveTo(x, y, x + radius, y);
+  context.closePath();
 };
 
-const shareOrDownloadReceipt = async ({ element, fileName }) => {
-  const blob = await captureReceiptAsBlob(element);
+const getImageFromDataUrl = (dataUrl) => new Promise((resolve, reject) => {
+  const image = new Image();
+  image.onload = () => resolve(image);
+  image.onerror = reject;
+  image.src = dataUrl;
+});
+
+const createReceiptCanvasBlob = async ({ receipt, deliveredByName }) => {
+  const product = receipt.product || {};
+  const customer = receipt.customer || {};
+  const payment = receipt.payment || {};
+  const staff = receipt.staff || {};
+  const canvas = document.createElement('canvas');
+  canvas.width = 1080;
+  canvas.height = 1420;
+  const context = canvas.getContext('2d');
+
+  context.fillStyle = '#ffffff';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
+  const gradient = context.createLinearGradient(0, 0, canvas.width, 0);
+  gradient.addColorStop(0, '#f97316');
+  gradient.addColorStop(0.55, '#9333ea');
+  gradient.addColorStop(1, '#0284c7');
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, canvas.width, 220);
+
+  context.fillStyle = '#fff7ed';
+  context.font = '900 28px Arial';
+  context.fillText('Sure-Bank Stores', 70, 72);
+  context.fillStyle = '#ffffff';
+  context.font = '900 54px Arial';
+  context.fillText('Product Receipt', 70, 135);
+  context.font = '700 28px Arial';
+  context.fillText(receipt.receiptNumber || 'Receipt', 70, 180);
+
+  const cardY = 270;
+  const cardWidth = 220;
+  const cardGap = 25;
+  const cards = [
+    ['Date', formatDate(receipt.receiptDate), '#fff7ed', '#c2410c'],
+    ['Paid', formatDate(payment.paidAt), '#faf5ff', '#7e22ce'],
+    ['Status', product.fulfillmentStatus || 'delivered', '#f0f9ff', '#0369a1'],
+    ['Total Paid', formatCurrency(product.totalAmount), '#ecfdf5', '#047857'],
+  ];
+
+  cards.forEach(([label, value, bg, color], index) => {
+    const x = 70 + index * (cardWidth + cardGap);
+    context.fillStyle = bg;
+    drawRoundRect(context, x, cardY, cardWidth, 115, 22);
+    context.fill();
+    context.fillStyle = color;
+    context.font = '900 22px Arial';
+    context.fillText(label.toUpperCase(), x + 22, cardY + 38);
+    context.fillStyle = '#0f172a';
+    context.font = '900 25px Arial';
+    wrapCanvasText(context, value, x + 22, cardY + 78, cardWidth - 44, 26, 2);
+  });
+
+  context.strokeStyle = '#e2e8f0';
+  context.lineWidth = 2;
+  drawRoundRect(context, 70, 430, 940, 150, 24);
+  context.stroke();
+  context.fillStyle = '#64748b';
+  context.font = '900 22px Arial';
+  context.fillText('CUSTOMER', 100, 472);
+  context.fillStyle = '#0f172a';
+  context.font = '900 30px Arial';
+  context.fillText(customer.name || 'Customer', 100, 515);
+  context.fillStyle = '#64748b';
+  context.font = '700 24px Arial';
+  context.fillText(customer.phone || 'Phone not supplied', 100, 550);
+
+  context.fillStyle = '#020617';
+  drawRoundRect(context, 70, 630, 940, 66, 18);
+  context.fill();
+  context.fillStyle = '#ffffff';
+  context.font = '900 22px Arial';
+  context.fillText('PRODUCT', 100, 672);
+  context.fillText('QTY', 690, 672);
+  context.fillText('AMOUNT', 830, 672);
+
+  context.fillStyle = '#0f172a';
+  context.font = '900 28px Arial';
+  wrapCanvasText(context, product.name || 'Product', 100, 755, 520, 34, 3);
+  context.fillStyle = '#475569';
+  context.font = '700 24px Arial';
+  context.fillText(String(Number(product.quantity || 1).toLocaleString()), 700, 755);
+  context.fillStyle = '#0f172a';
+  context.font = '900 28px Arial';
+  context.fillText(formatCurrency(product.totalAmount), 830, 755);
+
+  context.strokeStyle = '#e2e8f0';
+  context.beginPath();
+  context.moveTo(70, 870);
+  context.lineTo(1010, 870);
+  context.stroke();
+
+  context.fillStyle = '#f8fafc';
+  drawRoundRect(context, 570, 940, 440, 235, 24);
+  context.fill();
+  context.fillStyle = '#64748b';
+  context.font = '900 20px Arial';
+  context.fillText('AUTHORIZED SIGNATURE', 675, 990);
+
+  let signatureDrawn = false;
+  if (staff.signatureUrl) {
+    try {
+      const response = await fetch(staff.signatureUrl, { mode: 'cors' });
+      if (response.ok) {
+        const dataUrl = await blobToDataUrl(await response.blob());
+        const signatureImage = await getImageFromDataUrl(dataUrl);
+        context.drawImage(signatureImage, 640, 1015, 300, 75);
+        signatureDrawn = true;
+      }
+    } catch (error) {
+      signatureDrawn = false;
+    }
+  }
+
+  if (!signatureDrawn) {
+    context.strokeStyle = '#94a3b8';
+    context.lineWidth = 3;
+    context.beginPath();
+    context.moveTo(630, 1085);
+    context.lineTo(950, 1085);
+    context.stroke();
+  }
+
+  context.fillStyle = '#0f172a';
+  context.font = '900 24px Arial';
+  context.textAlign = 'center';
+  context.fillText(deliveredByName, 790, 1135);
+  context.textAlign = 'left';
+
+  return await new Promise((resolve) => canvas.toBlob(resolve, 'image/png', 1));
+};
+
+const shareOrDownloadReceiptImage = async ({ receipt, deliveredByName, fileName }) => {
+  const blob = await createReceiptCanvasBlob({ receipt, deliveredByName });
   if (!blob) {
     throw new Error('Could not create receipt image.');
   }
@@ -231,8 +330,9 @@ const ReceiptModal = ({ receipt, onClose, fallbackCustomerName = 'Customer' }) =
   const handleShare = async () => {
     setShareLoading(true);
     try {
-      await shareOrDownloadReceipt({
-        element: receiptRef.current,
+      await shareOrDownloadReceiptImage({
+        receipt,
+        deliveredByName,
         fileName: receiptFileName,
       });
     } catch (error) {
