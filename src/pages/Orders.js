@@ -111,6 +111,32 @@ const inlineComputedStyles = (source, target) => {
   });
 };
 
+const blobToDataUrl = (blob) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onloadend = () => resolve(reader.result);
+  reader.onerror = reject;
+  reader.readAsDataURL(blob);
+});
+
+const embedImagesAsDataUrls = async (element) => {
+  const images = Array.from(element.querySelectorAll('img'));
+  await Promise.all(images.map(async (image) => {
+    const source = image.getAttribute('src');
+    if (!source || source.startsWith('data:')) return;
+
+    try {
+      const response = await fetch(source, { mode: 'cors' });
+      if (!response.ok) throw new Error('Image fetch failed');
+      const blob = await response.blob();
+      image.setAttribute('src', await blobToDataUrl(blob));
+      image.removeAttribute('crossorigin');
+    } catch (error) {
+      image.removeAttribute('src');
+      image.setAttribute('alt', image.getAttribute('alt') || 'Signature unavailable for image export');
+    }
+  }));
+};
+
 const captureReceiptAsBlob = async (element) => {
   if (!element) {
     throw new Error('Receipt is not ready to share.');
@@ -121,6 +147,7 @@ const captureReceiptAsBlob = async (element) => {
   clone.querySelectorAll('[data-receipt-actions="true"]').forEach((node) => node.remove());
   clone.style.maxHeight = 'none';
   clone.style.overflow = 'visible';
+  await embedImagesAsDataUrls(clone);
 
   const width = Math.ceil(element.scrollWidth);
   const height = Math.ceil(element.scrollHeight);
