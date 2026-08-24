@@ -3,12 +3,14 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchProductsRequest } from '../redux/slices/productSlice';
 import ProductCard from '../components/ProductCard';
+import ProductCardSkeleton from '../components/ProductCardSkeleton';
+import ProductPagination from '../components/ProductPagination';
 
 const Products = () => {
   const dispatch = useDispatch();
   const { categoryId } = useParams();
   const [searchParams] = useSearchParams();
-  const { products, categories, productsLoading, productsLoaded } = useSelector((state) => state.products);
+  const { products, productsPagination, categories, productsLoading, productsLoaded } = useSelector((state) => state.products);
   const searchCategoryId = searchParams.get('category') || '';
   const searchSubCategoryId = searchParams.get('subcategory') || '';
   const searchQuery = searchParams.get('search') || '';
@@ -21,9 +23,13 @@ const Products = () => {
     maxPrice: '',
   });
   const [showFilters, setShowFilters] = useState(false);
+  const [productsPage, setProductsPage] = useState(1);
 
   useEffect(() => {
-    const queryFilters = {};
+    const queryFilters = {
+      page: productsPage,
+      limit: 16,
+    };
     if (filters.categoryId) queryFilters.categoryId = filters.categoryId;
     if (filters.subCategoryId) queryFilters.subCategoryId = filters.subCategoryId;
     if (filters.search) queryFilters.search = filters.search;
@@ -31,7 +37,7 @@ const Products = () => {
     if (filters.maxPrice) queryFilters.maxPrice = filters.maxPrice;
 
     dispatch(fetchProductsRequest(queryFilters));
-  }, [dispatch, filters]);
+  }, [dispatch, filters, productsPage]);
 
   useEffect(() => {
     setFilters((prev) => ({
@@ -40,6 +46,7 @@ const Products = () => {
       subCategoryId: searchSubCategoryId,
       search: searchQuery,
     }));
+    setProductsPage(1);
   }, [categoryId, searchCategoryId, searchSubCategoryId, searchQuery]);
 
   const handleFilterChange = (e) => {
@@ -49,6 +56,7 @@ const Products = () => {
       [name]: value,
       ...(name === 'categoryId' ? { subCategoryId: '' } : {}),
     }));
+    setProductsPage(1);
   };
 
   const clearFilters = () => {
@@ -59,6 +67,7 @@ const Products = () => {
       minPrice: '',
       maxPrice: '',
     });
+    setProductsPage(1);
   };
 
   const currentCategory = categories.find((c) => c._id === filters.categoryId);
@@ -179,7 +188,10 @@ const Products = () => {
               <div className="mt-4 flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={() => setFilters((prev) => ({ ...prev, subCategoryId: '' }))}
+                  onClick={() => {
+                    setFilters((prev) => ({ ...prev, subCategoryId: '' }));
+                    setProductsPage(1);
+                  }}
                   className={`rounded-full px-3 py-1 text-sm transition ${
                     !filters.subCategoryId
                       ? 'bg-primary-600 text-white'
@@ -192,7 +204,10 @@ const Products = () => {
                   <button
                     key={subCategory._id}
                     type="button"
-                    onClick={() => setFilters((prev) => ({ ...prev, subCategoryId: subCategory._id }))}
+                    onClick={() => {
+                      setFilters((prev) => ({ ...prev, subCategoryId: subCategory._id }));
+                      setProductsPage(1);
+                    }}
                     className={`rounded-full px-3 py-1 text-sm transition ${
                       filters.subCategoryId === subCategory._id
                         ? 'bg-primary-600 text-white'
@@ -207,8 +222,10 @@ const Products = () => {
           </div>
 
           {productsLoading || !productsLoaded ? (
-            <div className="flex justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+              {Array.from({ length: 12 }).map((_, index) => (
+                <ProductCardSkeleton key={`products-skeleton-${index}`} />
+              ))}
             </div>
           ) : products.length === 0 ? (
             <div className="text-center py-12">
@@ -259,6 +276,12 @@ const Products = () => {
                 <ProductCard key={product._id} product={product} />
               ))}
             </div>
+          )}
+          {!productsLoading && productsLoaded && products.length > 0 && (
+            <ProductPagination
+              pagination={productsPagination}
+              onPageChange={setProductsPage}
+            />
           )}
         </main>
       </div>

@@ -1,8 +1,34 @@
 import { API_URL } from "./api";
 
-export const resolveImageUrl = (imagePath) => {
+const isCloudinaryImageUrl = (value = "") =>
+  /^https?:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\//i.test(value);
+
+const buildCloudinaryTransform = ({ width, height, crop = "limit", quality = "auto", format = "auto" } = {}) => {
+  const transforms = [];
+
+  if (format) transforms.push(`f_${format}`);
+  if (quality) transforms.push(`q_${quality}`);
+  if (width) transforms.push(`w_${width}`);
+  if (height) transforms.push(`h_${height}`);
+  if ((width || height) && crop) transforms.push(`c_${crop}`);
+
+  return transforms.join(",");
+};
+
+const applyCloudinaryTransform = (imageUrl, options) => {
+  if (!isCloudinaryImageUrl(imageUrl)) return imageUrl;
+
+  const transform = buildCloudinaryTransform(options);
+  if (!transform) return imageUrl;
+
+  return imageUrl.replace("/image/upload/", `/image/upload/${transform}/`);
+};
+
+export const resolveImageUrl = (imagePath, options) => {
   if (!imagePath) return "";
-  if (/^https?:\/\//i.test(imagePath)) return imagePath;
+  if (/^https?:\/\//i.test(imagePath)) {
+    return applyCloudinaryTransform(imagePath, options);
+  }
   return `${API_URL}${imagePath}`;
 };
 

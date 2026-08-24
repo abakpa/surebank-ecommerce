@@ -8,8 +8,23 @@ const normalizeListPayload = (payload) => {
   return [];
 };
 
+const defaultProductsPagination = {
+  page: 1,
+  limit: 0,
+  total: 0,
+  totalPages: 1,
+  hasNextPage: false,
+  hasPrevPage: false,
+};
+
+const normalizePaginationPayload = (payload) => ({
+  ...defaultProductsPagination,
+  ...(payload?.pagination || {}),
+});
+
 const initialState = {
   products: [],
+  productsPagination: defaultProductsPagination,
   product: null,
   featuredProducts: [],
   categories: [],
@@ -35,6 +50,7 @@ const productSlice = createSlice({
       state.productsLoading = false;
       state.productsLoaded = true;
       state.products = normalizeListPayload(action.payload);
+      state.productsPagination = normalizePaginationPayload(action.payload);
     },
     fetchProductsFailure: (state, action) => {
       state.loading = false;

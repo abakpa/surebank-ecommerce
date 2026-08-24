@@ -15,7 +15,7 @@ const ProductCard = ({ product, compact = false }) => {
   };
 
   const imageUrl = product.images && product.images.length > 0
-    ? resolveImageUrl(product.images[0])
+    ? resolveImageUrl(product.images[0], { width: compact ? 420 : 640, height: compact ? 420 : 480, crop: 'fill' })
     : PRODUCT_FALLBACK_IMAGE;
 
   return (
@@ -25,6 +25,8 @@ const ProductCard = ({ product, compact = false }) => {
           <img
             src={imageUrl}
             alt={product.name}
+            loading="lazy"
+            decoding="async"
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             onError={handleImageFallback}
           />

@@ -226,7 +226,7 @@ const ProductDetail = () => {
     let cancelled = false;
     setRelatedLoading(true);
 
-    axios.get(`${API_URL}/api/products`, { params: { categoryId } })
+    axios.get(`${API_URL}/api/products`, { params: { categoryId, limit: 9 } })
       .then((response) => {
         if (cancelled) return;
 
@@ -624,10 +624,10 @@ const ProductDetail = () => {
   }
 
   const productImages = product.images && product.images.length > 0
-    ? product.images.map((img) => resolveImageUrl(img))
+    ? product.images.map((img) => resolveImageUrl(img, { width: 900 }))
     : [PRODUCT_FALLBACK_IMAGE];
   const images = selectedVariation?.image
-    ? [resolveImageUrl(selectedVariation.image), ...productImages]
+    ? [resolveImageUrl(selectedVariation.image, { width: 900 }), ...productImages]
     : productImages;
 
   return (
@@ -763,8 +763,10 @@ const ProductDetail = () => {
                     <div className="flex items-start gap-3">
                       {variation.image && (
                         <img
-                          src={resolveImageUrl(variation.image)}
+                          src={resolveImageUrl(variation.image, { width: 160, height: 160, crop: 'fill' })}
                           alt={variation.name || product.name}
+                          loading="lazy"
+                          decoding="async"
                           className="h-12 w-12 md:h-14 md:w-14 flex-shrink-0 rounded-md border border-gray-200 object-cover"
                           onError={handleImageFallback}
                         />

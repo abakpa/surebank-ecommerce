@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchFeaturedProductsRequest, fetchCategoriesRequest, fetchProductsRequest } from '../redux/slices/productSlice';
 import ProductCard from '../components/ProductCard';
+import ProductCardSkeleton from '../components/ProductCardSkeleton';
+import ProductPagination from '../components/ProductPagination';
 import { PRODUCT_FALLBACK_IMAGE, resolveImageUrl } from '../utils/image';
 import { API_URL } from '../utils/api';
 import { getProductDisplayPrice } from '../utils/pricing';
@@ -45,9 +47,10 @@ const heroSlides = [
 
 const Home = () => {
   const dispatch = useDispatch();
-  const { featuredProducts, products, categories, productsLoading, productsLoaded } = useSelector((state) => state.products);
+  const { featuredProducts, products, productsPagination, categories, productsLoading, productsLoaded } = useSelector((state) => state.products);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  const [productsPage, setProductsPage] = useState(1);
   const [filters, setFilters] = useState({
     search: '',
     categoryId: '',
@@ -79,6 +82,7 @@ const Home = () => {
       [name]: value,
       ...(name === 'categoryId' ? { subCategoryId: '' } : {}),
     }));
+    setProductsPage(1);
   };
 
   const clearFilters = () => {
@@ -87,6 +91,7 @@ const Home = () => {
       categoryId: '',
       subCategoryId: '',
     });
+    setProductsPage(1);
     setCategoryMenuOpen(false);
   };
 
@@ -101,6 +106,7 @@ const Home = () => {
 
   const handleCategorySelect = (categoryId, subCategoryId = '') => {
     setFilters((prev) => ({ ...prev, categoryId, subCategoryId }));
+    setProductsPage(1);
     setCategoryMenuOpen(false);
   };
 
@@ -123,14 +129,17 @@ const Home = () => {
   }, []);
 
   useEffect(() => {
-    const queryFilters = {};
+    const queryFilters = {
+      page: productsPage,
+      limit: 20,
+    };
 
     if (filters.search) queryFilters.search = filters.search;
     if (filters.categoryId) queryFilters.categoryId = filters.categoryId;
     if (filters.subCategoryId) queryFilters.subCategoryId = filters.subCategoryId;
 
     dispatch(fetchProductsRequest(queryFilters));
-  }, [dispatch, filters]);
+  }, [dispatch, filters, productsPage]);
 
   useEffect(() => {
     if (!isAutoPlaying) return;
@@ -406,8 +415,10 @@ const Home = () => {
           </div>
 
           {productsLoading || !productsLoaded ? (
-            <div className="flex justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
+              {Array.from({ length: 10 }).map((_, index) => (
+                <ProductCardSkeleton key={`home-product-skeleton-${index}`} compact />
+              ))}
             </div>
           ) : products.length === 0 ? (
             <div className="rounded-2xl bg-white py-12 text-center shadow-sm">
@@ -419,6 +430,12 @@ const Home = () => {
                 <ProductCard key={product._id} product={product} compact />
               ))}
             </div>
+          )}
+          {!productsLoading && productsLoaded && products.length > 0 && (
+            <ProductPagination
+              pagination={productsPagination}
+              onPageChange={setProductsPage}
+            />
           )}
         </div>
       </section>
@@ -506,8 +523,10 @@ const Home = () => {
                         {featuredProducts.slice(0, 3).map((product, idx) => (
                           <div key={product._id} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
                             <img
-                              src={product.images?.[0] ? resolveImageUrl(product.images[0]) : PRODUCT_FALLBACK_IMAGE}
+                              src={product.images?.[0] ? resolveImageUrl(product.images[0], { width: 120, height: 120, crop: 'fill' }) : PRODUCT_FALLBACK_IMAGE}
                               alt={product.name}
+                              loading="lazy"
+                              decoding="async"
                               className="w-12 h-12 object-cover rounded-lg"
                             />
                             <div className="flex-1 min-w-0">
