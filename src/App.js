@@ -29,6 +29,17 @@ import TermsAndConditions from './pages/TermsAndConditions';
 import ForgotPassword from './pages/ForgotPassword';
 import ChangePassword from './pages/ChangePassword';
 import AdminResetPassword from './pages/AdminResetPassword';
+import CustomerExperiences from './pages/CustomerExperiences';
+
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [pathname]);
+
+  return null;
+};
 
 // Layout wrapper component
 const Layout = ({ children }) => {
@@ -70,6 +81,7 @@ function AppRoutes() {
 
   return (
     <Layout>
+      <ScrollToTop />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/products" element={<Products />} />
@@ -85,6 +97,7 @@ function AppRoutes() {
         <Route path="/wallet" element={<Wallet />} />
         <Route path="/my-ds" element={<MyDS />} />
         <Route path="/account" element={<Account />} />
+        <Route path="/customer-experiences" element={<CustomerExperiences />} />
         <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
         <Route path="/order-confirmation/:orderNumber" element={<OrderConfirmation />} />
         <Route path="/payment/verify" element={<PaymentVerify />} />

@@ -22,6 +22,18 @@ const normalizePaginationPayload = (payload) => ({
   ...(payload?.pagination || {}),
 });
 
+const appendUniqueProducts = (currentProducts, nextProducts) => {
+  const existingIds = new Set(currentProducts.map((product) => product?._id).filter(Boolean));
+  const uniqueNextProducts = nextProducts.filter((product) => {
+    if (!product?._id) return true;
+    if (existingIds.has(product._id)) return false;
+    existingIds.add(product._id);
+    return true;
+  });
+
+  return [...currentProducts, ...uniqueNextProducts];
+};
+
 const initialState = {
   products: [],
   productsPagination: defaultProductsPagination,
@@ -30,6 +42,7 @@ const initialState = {
   categories: [],
   loading: false,
   productsLoading: false,
+  productsAppending: false,
   productsLoaded: false,
   productLoading: false,
   productLoaded: false,
@@ -40,21 +53,31 @@ const productSlice = createSlice({
   name: 'products',
   initialState,
   reducers: {
-    fetchProductsRequest: (state) => {
+    fetchProductsRequest: (state, action) => {
       state.loading = true;
-      state.productsLoading = true;
+      if (action.payload?.append) {
+        state.productsAppending = true;
+      } else {
+        state.productsLoading = true;
+        state.productsAppending = false;
+      }
       state.error = null;
     },
     fetchProductsSuccess: (state, action) => {
       state.loading = false;
       state.productsLoading = false;
+      state.productsAppending = false;
       state.productsLoaded = true;
-      state.products = normalizeListPayload(action.payload);
+      const nextProducts = normalizeListPayload(action.payload);
+      state.products = action.payload?.append
+        ? appendUniqueProducts(state.products, nextProducts)
+        : nextProducts;
       state.productsPagination = normalizePaginationPayload(action.payload);
     },
     fetchProductsFailure: (state, action) => {
       state.loading = false;
       state.productsLoading = false;
+      state.productsAppending = false;
       state.productsLoaded = true;
       state.error = action.payload;
     },

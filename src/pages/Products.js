@@ -1,16 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchProductsRequest } from '../redux/slices/productSlice';
 import ProductCard from '../components/ProductCard';
 import ProductCardSkeleton from '../components/ProductCardSkeleton';
-import ProductPagination from '../components/ProductPagination';
 
 const Products = () => {
   const dispatch = useDispatch();
   const { categoryId } = useParams();
   const [searchParams] = useSearchParams();
-  const { products, productsPagination, categories, productsLoading, productsLoaded } = useSelector((state) => state.products);
+  const { products, productsPagination, categories, productsLoading, productsAppending, productsLoaded } = useSelector((state) => state.products);
   const searchCategoryId = searchParams.get('category') || '';
   const searchSubCategoryId = searchParams.get('subcategory') || '';
   const searchQuery = searchParams.get('search') || '';
@@ -24,6 +23,7 @@ const Products = () => {
   });
   const [showFilters, setShowFilters] = useState(false);
   const [productsPage, setProductsPage] = useState(1);
+  const loadMoreRef = useRef(null);
 
   useEffect(() => {
     const queryFilters = {
@@ -35,9 +35,38 @@ const Products = () => {
     if (filters.search) queryFilters.search = filters.search;
     if (filters.minPrice) queryFilters.minPrice = filters.minPrice;
     if (filters.maxPrice) queryFilters.maxPrice = filters.maxPrice;
+    if (productsPage > 1) queryFilters.append = true;
 
     dispatch(fetchProductsRequest(queryFilters));
   }, [dispatch, filters, productsPage]);
+
+  useEffect(() => {
+    const loadMoreTarget = loadMoreRef.current;
+    if (!loadMoreTarget) return undefined;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (
+          entry.isIntersecting &&
+          productsLoaded &&
+          !productsLoading &&
+          !productsAppending &&
+          productsPagination.hasNextPage
+        ) {
+          setProductsPage((page) => page + 1);
+        }
+      },
+      { rootMargin: '300px 0px' }
+    );
+
+    observer.observe(loadMoreTarget);
+    return () => observer.disconnect();
+  }, [
+    productsLoaded,
+    productsLoading,
+    productsAppending,
+    productsPagination.hasNextPage,
+  ]);
 
   useEffect(() => {
     setFilters((prev) => ({
@@ -277,11 +306,13 @@ const Products = () => {
               ))}
             </div>
           )}
-          {!productsLoading && productsLoaded && products.length > 0 && (
-            <ProductPagination
-              pagination={productsPagination}
-              onPageChange={setProductsPage}
-            />
+          <div ref={loadMoreRef} className="h-8" aria-hidden="true" />
+          {productsAppending && (
+            <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <ProductCardSkeleton key={`products-more-skeleton-${index}`} />
+              ))}
+            </div>
           )}
         </main>
       </div>

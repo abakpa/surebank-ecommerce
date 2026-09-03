@@ -8,8 +8,8 @@ export default defineConfig({
     proxy: {
       '/api': {
         // target: 'https://surebank-backend.onrender.com',
-        target: 'https://backend-hz3lu.ondigitalocean.app',
-        // target: 'http://localhost:8080',
+        // target: 'https://backend-hz3lu.ondigitalocean.app',
+        target: 'http://localhost:8080',
         changeOrigin: true,
       },
     },

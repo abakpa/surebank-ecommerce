@@ -18,10 +18,10 @@ import { API_URL } from '../../utils/api';
 
 function* fetchProductsSaga(action) {
   try {
-    const params = action.payload || {};
+    const { append, ...params } = action.payload || {};
     const queryString = new URLSearchParams(params).toString();
     const response = yield call(axios.get, `${API_URL}/api/products?${queryString}`);
-    yield put(fetchProductsSuccess(response.data));
+    yield put(fetchProductsSuccess({ ...response.data, append }));
   } catch (error) {
     yield put(fetchProductsFailure(error.response?.data?.message || 'Failed to fetch products'));
   }
