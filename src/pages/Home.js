@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { fetchFeaturedProductsRequest, fetchCategoriesRequest, fetchProductsRequest } from '../redux/slices/productSlice';
 import ProductCard from '../components/ProductCard';
 import ProductCardSkeleton from '../components/ProductCardSkeleton';
+import ProductSearchAutocomplete from '../components/ProductSearchAutocomplete';
 import { handleImageFallback, resolveImageUrl } from '../utils/image';
 import { getProductDisplayPrice } from '../utils/pricing';
 
@@ -110,6 +111,14 @@ const Home = () => {
     setProductsPage(1);
   };
 
+  const handleSearchSuggestionSelect = (productName) => {
+    setFilters((prev) => ({
+      ...prev,
+      search: productName,
+    }));
+    setProductsPage(1);
+  };
+
   const clearFilters = () => {
     setFilters({
       search: '',
@@ -144,13 +153,13 @@ const Home = () => {
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m1.1-5.4a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z" />
           </svg>
-          <input
-            type="text"
-            name="search"
+          <ProductSearchAutocomplete
             value={filters.search}
             onChange={handleFilterChange}
+            onSelect={handleSearchSuggestionSelect}
+            products={products}
             placeholder="Search by product name"
-            className="w-full rounded-lg border border-gray-200 py-2.5 pl-10 pr-3 text-sm text-gray-700 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 sm:px-4 sm:py-3 sm:pl-11"
+            inputClassName="w-full rounded-lg border border-gray-200 py-2.5 pl-10 pr-3 text-sm text-gray-700 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 sm:px-4 sm:py-3 sm:pl-11"
           />
         </div>
         {showFilters && (

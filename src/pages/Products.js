@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { fetchProductsRequest } from '../redux/slices/productSlice';
 import ProductCard from '../components/ProductCard';
 import ProductCardSkeleton from '../components/ProductCardSkeleton';
+import ProductSearchAutocomplete from '../components/ProductSearchAutocomplete';
 
 const Products = () => {
   const dispatch = useDispatch();
@@ -88,6 +89,14 @@ const Products = () => {
     setProductsPage(1);
   };
 
+  const handleSearchSuggestionSelect = (productName) => {
+    setFilters((prev) => ({
+      ...prev,
+      search: productName,
+    }));
+    setProductsPage(1);
+  };
+
   const clearFilters = () => {
     setFilters({
       categoryId: '',
@@ -131,13 +140,13 @@ const Products = () => {
             {/* Search */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
-              <input
-                type="text"
-                name="search"
+              <ProductSearchAutocomplete
                 value={filters.search}
                 onChange={handleFilterChange}
+                onSelect={handleSearchSuggestionSelect}
+                products={products}
                 placeholder="Search products..."
-                className="input-field"
+                inputClassName="input-field"
               />
             </div>
 
