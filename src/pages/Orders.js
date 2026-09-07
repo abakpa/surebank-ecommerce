@@ -1008,6 +1008,14 @@ const Orders = () => {
           </div>
         </div>
 
+        <div className="mb-2 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-100 via-orange-50 to-emerald-100 p-3 text-xs leading-5 text-slate-800 shadow-sm ring-1 ring-white sm:mb-6 sm:p-4 sm:text-sm">
+          <p>
+            <strong className="font-black text-amber-900">
+              Complete payment early to secure the current price and avoid price changes.
+            </strong>
+          </p>
+        </div>
+
         {pageMessage && (
           <div className="mb-3 hidden rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 sm:mb-5 sm:block sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
             {pageMessage}

@@ -17,15 +17,57 @@ const paymentOptions = [
   },
   {
     label: 'Pay Small Small',
-    description: 'Start with any amount and continue paying at your own pace until the product is fully paid for.',
+    description: (
+      <>
+        Start with any amount and pay at your pace.{' '}
+        <strong>Complete payment early to secure the current price and avoid price changes.</strong>
+      </>
+    ),
   },
   {
     label: 'No Fixed Duration',
-    description: 'There is no fixed payment schedule. You can complete payment whenever you are ready.',
+    description: (
+      <>
+        There’s no fixed payment schedule—pay at your convenience,{' '}
+        <strong>but complete payment early to secure the current price and avoid price changes.</strong>
+      </>
+    ),
   },
   {
     label: 'DS',
-    description: 'Daily Savings lets you contribute steadily into a DS package and use your savings flow toward your goals.',
+    description: (
+      <div className="space-y-3">
+        <h4 className="text-base font-bold text-slate-900">Save Daily. Achieve Your Goals.</h4>
+        <p>
+          It works just like the traditional <strong>AJO, ISUSU or AKAWO</strong>, but gives you a simple and
+          convenient way to save towards important goals.
+        </p>
+        <p>
+          <strong>Set a savings goal for:</strong>
+        </p>
+        <ul className="list-disc space-y-1 pl-5">
+          <li>Your children’s school fees</li>
+          <li>Your house rent</li>
+          <li>Your shop rent</li>
+          <li>Business needs</li>
+          <li>Other personal goals</li>
+        </ul>
+        <p>
+          Choose a fixed daily savings amount, such as <strong>₦1,000, ₦5,000 or ₦10,000</strong>. You can make
+          payments in any amount that is a multiple of your chosen daily amount.
+        </p>
+        <p>
+          Once your savings reach <strong>31 times your selected daily amount</strong>, one daily contribution is
+          deducted as the service charge, while the remaining amount becomes available to you.
+        </p>
+        <p>
+          <strong>Need your money?</strong> Withdrawal requests are processed within <strong>24 hours on working days</strong>.
+        </p>
+        <p>
+          <strong>Choose your goal. Set your daily amount. Start saving.</strong>
+        </p>
+      </div>
+    ),
   },
 ];
 
@@ -101,7 +143,7 @@ const Footer = () => {
           onClick={() => setActivePaymentOption(null)}
         >
           <div
-            className="w-full max-w-md rounded-2xl border border-white/10 bg-white p-5 text-slate-900 shadow-2xl"
+            className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl border border-white/10 bg-white p-5 text-slate-900 shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-4">
@@ -120,9 +162,9 @@ const Footer = () => {
                 X
               </button>
             </div>
-            <p className="mt-4 text-sm leading-6 text-slate-600">
+            <div className="mt-4 text-sm leading-6 text-slate-600">
               {activePaymentOption.description}
-            </p>
+            </div>
           </div>
         </div>
       )}
