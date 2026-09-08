@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchProductByIdRequest, clearProduct } from '../redux/slices/productSlice';
-import { addToCartRequest } from '../redux/slices/cartSlice';
+import { addToCartRequest, updateCartItemRequest } from '../redux/slices/cartSlice';
 import { loginRequest, registerRequest, clearError } from '../redux/slices/authSlice';
 import { initializePaymentRequest, clearPaymentState } from '../redux/slices/orderSlice';
 import { fetchWalletRequest } from '../redux/slices/walletSlice';
@@ -21,13 +21,14 @@ const ProductDetail = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const { product, productLoading, productLoaded, categories } = useSelector((state) => state.products);
-  const { loading: cartLoading } = useSelector((state) => state.cart);
+  const { items: cartItems, loading: cartLoading } = useSelector((state) => state.cart);
   const { isAuthenticated, customer, loading: authLoading, error: authError } = useSelector((state) => state.auth);
   const { paymentLoading, paymentError, paymentVerified } = useSelector((state) => state.orders);
   const { account: walletAccount } = useSelector((state) => state.wallet);
   const prevAuthRef = useRef(isAuthenticated);
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedVariationId, setSelectedVariationId] = useState('');
+  const [quantity, setQuantity] = useState(1);
   const [showAllVariations, setShowAllVariations] = useState(false);
   const [showPlanSetup, setShowPlanSetup] = useState(false);
   const [firstPaymentAmount, setFirstPaymentAmount] = useState('');
@@ -57,6 +58,8 @@ const ProductDetail = () => {
   const [showStateDropdown, setShowStateDropdown] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
+  const [showPriceChangeNoticeModal, setShowPriceChangeNoticeModal] = useState(false);
+  const [priceChangeNoticeChecked, setPriceChangeNoticeChecked] = useState(false);
   const customerEmail = '';
   const [processingPayment, setProcessingPayment] = useState(false);
   const [paymentErrorMessage, setPaymentErrorMessage] = useState('');
@@ -110,6 +113,11 @@ const ProductDetail = () => {
   const selectedPrice = selectedVariation
     ? calculateCustomerSellingPrice(selectedVariation.price)
     : getProductDisplayPrice(product);
+  const selectedVariationKey = selectedVariation?._id || '';
+  const productCartItem = (cartItems || []).find(
+    (item) => String(item.productId) === String(product?._id) && String(item.variationId || '') === String(selectedVariationKey)
+  );
+  const selectedSubtotal = Number(selectedPrice || 0) * quantity;
   const visibleVariations = showAllVariations
     ? activeVariations
     : activeVariations.slice(0, 2);
@@ -256,11 +264,34 @@ const ProductDetail = () => {
       return;
     }
 
-    dispatch(addToCartRequest({
+    const cartAction = productCartItem ? updateCartItemRequest : addToCartRequest;
+
+    dispatch(cartAction({
       productId: product._id,
-      quantity: 1,
-      variationId: selectedVariation?._id || '',
+      quantity,
+      variationId: selectedVariationKey,
     }));
+  };
+
+  const updateSelectedQuantity = (nextQuantity) => {
+    const normalizedQuantity = Math.max(1, Number(nextQuantity) || 1);
+    setQuantity(normalizedQuantity);
+
+    if (productCartItem && product?._id) {
+      dispatch(updateCartItemRequest({
+        productId: product._id,
+        quantity: normalizedQuantity,
+        variationId: selectedVariationKey,
+      }));
+    }
+  };
+
+  const decreaseQuantity = () => {
+    updateSelectedQuantity(quantity - 1);
+  };
+
+  const increaseQuantity = () => {
+    updateSelectedQuantity(quantity + 1);
   };
 
   const handleBuyNow = () => {
@@ -269,6 +300,17 @@ const ProductDetail = () => {
     if (showPlanSetup) {
       setShowPlanSetup(false);
     }
+  };
+
+  const handlePaySmallSmallConsentClick = () => {
+    if (termsAccepted) {
+      setTermsAccepted(false);
+      setPriceChangeNoticeChecked(false);
+      return;
+    }
+
+    setPriceChangeNoticeChecked(false);
+    setShowPriceChangeNoticeModal(true);
   };
 
   const openPaymentSourceModal = useCallback(async (paymentData) => {
@@ -382,9 +424,9 @@ const ProductDetail = () => {
       accountNumber: customer?.phone,
       callbackUrl: `${window.location.origin}/payment/verify`,
       productId: product._id,
-      quantity: 1,
+      quantity,
       variationId: selectedVariation?._id || '',
-      amountToCharge: Number(selectedPrice || 0),
+      amountToCharge: selectedSubtotal,
       deliveryMethod,
       pickupLocationId: selectedPickupLocation?.id || null
     };
@@ -392,7 +434,7 @@ const ProductDetail = () => {
     openPaymentSourceModal(paymentData);
   }, [
     isAuthenticated, buyNowEmail, deliveryMethod, buyNowAddress, buyNowState,
-    buyNowLGA, buyNowTown, selectedPickupLocation, customer, product, hasVariations, selectedVariation, selectedPrice, openPaymentSourceModal
+    buyNowLGA, buyNowTown, selectedPickupLocation, customer, product, hasVariations, selectedVariation, quantity, selectedSubtotal, openPaymentSourceModal
   ]);
 
   // Load Paystack script
@@ -519,9 +561,9 @@ const ProductDetail = () => {
       setPaymentErrorMessage('Please select a product variation');
       return;
     }
-    if (!hasActiveSBOrder && amountToPay > Number(selectedPrice || 0)) {
+    if (!hasActiveSBOrder && amountToPay > selectedSubtotal) {
       setProcessingPayment(false);
-      setPaymentErrorMessage(`First payment cannot exceed ₦${Number(selectedPrice || 0).toLocaleString()}`);
+      setPaymentErrorMessage(`First payment cannot exceed ₦${selectedSubtotal.toLocaleString()}`);
       return;
     }
 
@@ -543,13 +585,13 @@ const ProductDetail = () => {
       callbackUrl: `${window.location.origin}/payment/verify`,
       productId: product._id,
       variationId: selectedVariation?._id || '',
-      quantity: 1
+      quantity
     };
 
     openPaymentSourceModal(paymentData);
   }, [
     isAuthenticated, customerEmail, customer, product, firstPaymentAmount,
-    deliveryAddress, selectedLGA, selectedState, signupForm.phone, hasVariations, selectedVariation, selectedPrice, hasActiveSBOrder, openPaymentSourceModal
+    deliveryAddress, selectedLGA, selectedState, signupForm.phone, hasVariations, selectedVariation, quantity, selectedSubtotal, hasActiveSBOrder, openPaymentSourceModal
   ]);
 
   const getCategoryName = (categoryId) => {
@@ -582,12 +624,19 @@ const ProductDetail = () => {
   useEffect(() => {
     setSelectedImage(0);
     setSelectedVariationId('');
+    setQuantity(1);
     setShowAllVariations(false);
   }, [id]);
 
   useEffect(() => {
     setSelectedImage(0);
   }, [selectedVariationId]);
+
+  useEffect(() => {
+    if (productCartItem) {
+      setQuantity(Math.max(1, Number(productCartItem.quantity) || 1));
+    }
+  }, [productCartItem]);
 
   useEffect(() => {
     if (!product?.images || product.images.length <= 1) {
@@ -649,7 +698,7 @@ const ProductDetail = () => {
 
       {/* Product Image Carousel */}
       <div className="bg-white py-2 md:py-4">
-        <div className="mx-auto max-w-[240px] sm:max-w-sm md:max-w-md">
+        <div className="mx-auto max-w-xs sm:max-w-sm md:max-w-md">
           <div className="relative bg-gray-50 rounded-xl overflow-hidden mx-3 md:mx-4">
             <div className="aspect-[4/3] md:aspect-square relative flex items-center justify-center p-2 md:p-4">
               <img
@@ -689,7 +738,7 @@ const ProductDetail = () => {
       </div>
 
       {/* Product Overview Card */}
-      <div className="mx-auto mt-2 md:mt-4 max-w-xs sm:max-w-sm md:max-w-md bg-white rounded-xl p-3 md:p-4 shadow-sm">
+      <div className="mx-auto mt-2 w-[calc(100%-1.5rem)] max-w-md bg-white rounded-xl p-3 shadow-sm md:mt-4 md:p-4">
         <h2 className="text-sm md:text-base font-semibold text-gray-900">Product overview</h2>
         <p className="hidden sm:block text-sm text-gray-500 mt-1">Review item details and choose how you want to pay.</p>
 
@@ -734,9 +783,50 @@ const ProductDetail = () => {
 
         <h3 className="text-sm md:text-base font-medium text-gray-900 mt-2 md:mt-4">{product.name}</h3>
 
-        <p className="text-lg md:text-xl font-bold text-orange-500 mt-1 md:mt-2">
-          ₦{selectedPrice?.toLocaleString()}
-        </p>
+        <div className="mt-2 rounded-xl border border-orange-100 bg-orange-50 p-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <p className="text-xs font-semibold text-gray-500">Unit price</p>
+              <p className="mt-0.5 text-lg font-bold text-orange-600 md:text-xl">
+                ₦{selectedPrice?.toLocaleString()}
+              </p>
+            </div>
+            <div className="sm:text-right">
+              <p className="text-xs font-semibold text-gray-500">Subtotal</p>
+              <p className="mt-0.5 text-lg font-black text-gray-900 md:text-xl">
+                ₦{selectedSubtotal.toLocaleString()}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-3 flex flex-col gap-2 rounded-lg bg-white px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+            <span className="text-sm font-semibold text-gray-700">Quantity</span>
+            <div className="flex w-max items-center rounded-full border border-orange-200 bg-orange-50">
+              <button
+                type="button"
+                onClick={decreaseQuantity}
+                disabled={quantity <= 1}
+                className="flex h-9 w-9 items-center justify-center rounded-full text-orange-700 transition hover:bg-orange-100 disabled:cursor-not-allowed disabled:text-gray-300"
+                aria-label="Decrease quantity"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 12h14" />
+                </svg>
+              </button>
+              <span className="min-w-10 px-2 text-center text-base font-black text-gray-900">{quantity}</span>
+              <button
+                type="button"
+                onClick={increaseQuantity}
+                className="flex h-9 w-9 items-center justify-center rounded-full text-orange-700 transition hover:bg-orange-100"
+                aria-label="Increase quantity"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 5v14m-7-7h14" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
 
         {hasVariations && (
           <div className="mt-3 md:mt-4">
@@ -772,11 +862,11 @@ const ProductDetail = () => {
                         />
                       )}
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="text-sm font-semibold text-gray-900">
+                        <div className="flex items-start justify-between gap-3">
+                          <span className="min-w-0 break-words text-sm font-semibold text-gray-900">
                             {variation.name || optionEntries.map(([, value]) => value).join(' / ')}
                           </span>
-                          <span className="text-sm font-bold text-orange-500">
+                          <span className="shrink-0 text-right text-sm font-bold text-orange-500">
                             ₦{calculateCustomerSellingPrice(variation.price).toLocaleString()}
                           </span>
                         </div>
@@ -803,10 +893,10 @@ const ProductDetail = () => {
           </div>
         )}
 
-        <div className="flex items-center gap-2 md:gap-3 mt-3">
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 md:gap-3">
           <button
             onClick={handleBuyNow}
-            className={`text-xs md:text-sm font-bold px-4 md:px-5 py-2 rounded-full text-white shadow-sm transition-colors ${
+            className={`w-full text-xs md:text-sm font-bold px-4 md:px-5 py-2 rounded-full text-white shadow-sm transition-colors ${
               showBuyNowSetup
                 ? 'bg-orange-700'
                 : 'bg-orange-600 hover:bg-orange-700'
@@ -819,7 +909,7 @@ const ProductDetail = () => {
               setShowPlanSetup(!showPlanSetup);
               if (showBuyNowSetup) setShowBuyNowSetup(false);
             }}
-            className={`text-xs md:text-sm font-bold px-4 md:px-5 py-2 rounded-full text-white shadow-sm transition-colors ${
+            className={`w-full text-xs md:text-sm font-bold px-4 md:px-5 py-2 rounded-full text-white shadow-sm transition-colors ${
               showPlanSetup
                 ? 'bg-orange-700'
                 : 'bg-orange-600 hover:bg-orange-700'
@@ -833,11 +923,11 @@ const ProductDetail = () => {
 
       {/* Buy Now Once Setup Card */}
       {showBuyNowSetup && (
-        <div className="mx-auto mt-4 max-w-xs sm:max-w-sm md:max-w-md bg-white rounded-xl p-4 shadow-sm">
+        <div className="mx-auto mt-4 w-[calc(100%-1.5rem)] max-w-md bg-white rounded-xl p-4 shadow-sm">
           {/* Payment Summary Header */}
           <div className="bg-orange-50 rounded-lg p-4 mb-4">
             <p className="text-center text-gray-700">
-              You will pay <span className="text-orange-500 font-bold">₦{selectedPrice?.toLocaleString()}</span> once.
+              You will pay <span className="text-orange-500 font-bold">₦{selectedSubtotal.toLocaleString()}</span> once for {quantity} item{quantity === 1 ? '' : 's'}.
             </p>
           </div>
 
@@ -848,7 +938,7 @@ const ProductDetail = () => {
             </div>
 
             {/* Delivery Method Toggle */}
-            <div className="flex gap-2 mb-4">
+            <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
               <button
                 onClick={() => {
                   setDeliveryMethod('home');
@@ -1076,7 +1166,7 @@ const ProductDetail = () => {
 
       {/* Plan Setup Card */}
       {showPlanSetup && (
-        <div className="mx-auto mt-4 max-w-xs sm:max-w-sm md:max-w-md bg-white rounded-xl p-4 shadow-sm">
+        <div className="mx-auto mt-4 w-[calc(100%-1.5rem)] max-w-md bg-white rounded-xl p-4 shadow-sm">
           <h2 className="text-base font-semibold text-gray-900">Pay Small Small</h2>
           <p className="text-sm text-gray-500 mt-1">
             {hasActiveSBOrder
@@ -1086,8 +1176,8 @@ const ProductDetail = () => {
 
           <div className="mt-4 rounded-lg border border-orange-200 bg-orange-50 p-3">
             <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Product price</span>
-              <span className="font-semibold">₦{selectedPrice?.toLocaleString()}</span>
+              <span className="text-gray-600">Product subtotal</span>
+              <span className="font-semibold">₦{selectedSubtotal.toLocaleString()}</span>
             </div>
             {!hasActiveSBOrder && (
               <>
@@ -1095,19 +1185,19 @@ const ProductDetail = () => {
                 <input
                   type="number"
                   min="1"
-                  max={selectedPrice}
+                  max={selectedSubtotal}
                   value={firstPaymentAmount}
                   onChange={(e) => setFirstPaymentAmount(e.target.value)}
                   placeholder="Enter amount to pay now"
                   className="mt-1 w-full rounded-lg border border-orange-200 px-4 py-3 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
                 />
                 <p className="mt-2 text-xs text-gray-500">
-                  Remaining balance after this payment: ₦{Math.max(0, Number(selectedPrice || 0) - Number(firstPaymentAmount || 0)).toLocaleString()}
+                  Remaining balance after this payment: ₦{Math.max(0, selectedSubtotal - Number(firstPaymentAmount || 0)).toLocaleString()}
                 </p>
               </>
             )}
 
-            {(hasActiveSBOrder || (Number(firstPaymentAmount) > 0 && Number(firstPaymentAmount) <= Number(selectedPrice || 0))) && (
+            {(hasActiveSBOrder || (Number(firstPaymentAmount) > 0 && Number(firstPaymentAmount) <= selectedSubtotal)) && (
               <div className="mt-4 pt-4 border-t border-orange-200">
                 <div className="flex justify-between items-start">
                   <span className="text-sm font-medium text-gray-700">Delivery Address</span>
@@ -1136,7 +1226,7 @@ const ProductDetail = () => {
             <div className="mt-4 pt-4 border-t border-orange-200">
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setTermsAccepted((accepted) => !accepted)}
+                  onClick={handlePaySmallSmallConsentClick}
                   className={`w-6 h-6 rounded flex items-center justify-center border-[3px] transition-colors ${
                     termsAccepted
                       ? 'bg-orange-500 border-orange-500'
@@ -1194,7 +1284,7 @@ const ProductDetail = () => {
 
       {/* More Description Card */}
       {product.description && (
-        <div className="mx-auto mt-2 md:mt-4 mb-6 max-w-xs sm:max-w-sm md:max-w-md bg-white rounded-xl p-3 md:p-4 shadow-sm">
+        <div className="mx-auto mb-6 mt-2 w-[calc(100%-1.5rem)] max-w-md bg-white rounded-xl p-3 shadow-sm md:mt-4 md:p-4">
           <h2 className="text-sm md:text-base font-semibold text-gray-900">More description</h2>
 
           <div className="mt-2 md:mt-3 text-sm text-gray-600 space-y-1">
@@ -1294,8 +1384,8 @@ const ProductDetail = () => {
       )}
 
       {showPaymentSourceModal && pendingPaymentData && (
-        <div className="fixed inset-0 z-[55] flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+        <div className="fixed inset-0 z-[55] flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-10 sm:items-center sm:pt-4">
+          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-lg font-bold text-gray-900">
@@ -1370,7 +1460,7 @@ const ProductDetail = () => {
         </div>
       )}
 
-      {processingPayment && !showPaymentSourceModal && !showTermsModal && (
+      {processingPayment && !showPaymentSourceModal && !showTermsModal && !showPriceChangeNoticeModal && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-xs rounded-2xl bg-white p-6 text-center shadow-2xl">
             <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-orange-100 border-t-orange-500"></div>
@@ -1380,6 +1470,69 @@ const ProductDetail = () => {
             <p className="mt-1 text-xs text-gray-500">
               {hasActiveSBOrder ? 'Please wait while we take you to My Orders.' : 'Please wait while we open your payment page.'}
             </p>
+          </div>
+        </div>
+      )}
+
+      {showPriceChangeNoticeModal && (
+        <div className="fixed inset-0 z-[65] flex items-start justify-center overflow-y-auto bg-slate-950/70 p-4 pt-10 backdrop-blur-sm sm:items-center sm:pt-4">
+          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl bg-white shadow-2xl">
+            <div className="bg-gradient-to-br from-amber-500 via-orange-500 to-emerald-600 px-5 py-5 text-white">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-wide text-white/80">Pay Small Small</p>
+                  <h3 className="mt-1 text-2xl font-black">Price Change Notice</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPriceChangeNoticeModal(false);
+                    setPriceChangeNoticeChecked(false);
+                  }}
+                  className="rounded-full bg-white/15 px-3 py-1.5 text-xs font-black text-white hover:bg-white/25"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+            <div className="p-5">
+              <p className="text-sm leading-6 text-slate-600">
+                I understand that the product price may increase or decrease before I complete payment due to market
+                conditions. <strong className="font-black text-slate-950">All payments made will remain fully credited to my account</strong>,
+                and the final product price will apply when I complete payment.
+              </p>
+
+              <button
+                type="button"
+                onClick={() => setPriceChangeNoticeChecked((checked) => !checked)}
+                className="mt-5 flex w-full items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left"
+              >
+                <span className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-[3px] ${
+                  priceChangeNoticeChecked ? 'border-orange-500 bg-orange-500' : 'border-orange-400 bg-white'
+                }`}>
+                  {priceChangeNoticeChecked && (
+                    <svg className="h-4 w-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </span>
+                <span className="text-sm font-bold leading-6 text-amber-900">
+                  I have read and accept this price change notice.
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setTermsAccepted(true);
+                  setShowPriceChangeNoticeModal(false);
+                }}
+                disabled={!priceChangeNoticeChecked}
+                className="mt-4 w-full rounded-full bg-orange-500 py-3 text-sm font-black text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
+              >
+                Accept Notice
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1466,16 +1619,16 @@ const ProductDetail = () => {
             <div className="p-4 border-t">
               <button
                 onClick={() => {
-                  setProcessingPayment(true);
                   setPaymentErrorMessage('');
                   if (showBuyNowSetup) {
+                    setProcessingPayment(true);
                     setBuyNowTermsAccepted(true);
                     setShowTermsModal(false);
                     handleBuyNowPayment();
                   } else {
-                    setTermsAccepted(true);
                     setShowTermsModal(false);
-                    handlePaySmallSmall();
+                    setPriceChangeNoticeChecked(false);
+                    setShowPriceChangeNoticeModal(true);
                   }
                 }}
                 disabled={processingPayment || paymentLoading}

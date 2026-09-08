@@ -47,6 +47,8 @@ const Cart = () => {
   const [processingPayment, setProcessingPayment] = useState(false);
   const [paymentError, setPaymentError] = useState('');
   const [showTermsModal, setShowTermsModal] = useState(false);
+  const [showPriceChangeNoticeModal, setShowPriceChangeNoticeModal] = useState(false);
+  const [priceChangeNoticeChecked, setPriceChangeNoticeChecked] = useState(false);
   const [showPaymentSourceModal, setShowPaymentSourceModal] = useState(false);
   const [pendingPaymentData] = useState(null);
   const [paymentSourceMode] = useState('all');
@@ -205,6 +207,22 @@ const Cart = () => {
       return;
     }
     setShowPaymentModal(true);
+  };
+
+  const handleCheckoutConsentClick = () => {
+    if (paymentType !== 'installment') {
+      setTermsAccepted((accepted) => !accepted);
+      return;
+    }
+
+    if (termsAccepted) {
+      setTermsAccepted(false);
+      setPriceChangeNoticeChecked(false);
+      return;
+    }
+
+    setPriceChangeNoticeChecked(false);
+    setShowPriceChangeNoticeModal(true);
   };
 
   const walletBalance = Number(walletAccount?.availableBalance || 0);
@@ -541,14 +559,14 @@ const Cart = () => {
         {/* Cart Items */}
         <div className="mt-4 space-y-3">
           {items.map((item) => (
-            <div key={`${item.productId}-${item.variationId || 'default'}`} className="bg-white rounded-xl p-4 shadow-sm">
-              <div className="flex gap-4">
+            <div key={`${item.productId}-${item.variationId || 'default'}`} className="bg-white rounded-xl p-3 shadow-sm sm:p-4">
+              <div className="flex gap-3 sm:gap-4">
                 {/* Product Image */}
                 <Link to={`/product/${item.productId}`} className="flex-shrink-0">
                   <img
                     src={item.image ? resolveImageUrl(item.image) : PRODUCT_FALLBACK_IMAGE}
                     alt={item.productName}
-                    className="w-24 h-24 object-cover rounded-lg"
+                    className="h-20 w-20 rounded-lg object-cover sm:h-24 sm:w-24"
                   />
                 </Link>
 
@@ -657,7 +675,11 @@ const Cart = () => {
 
                   {/* Pay Small Small Option */}
                   <button
-                    onClick={() => setPaymentType('installment')}
+                    onClick={() => {
+                      setPaymentType('installment');
+                      setTermsAccepted(false);
+                      setPriceChangeNoticeChecked(false);
+                    }}
                     className="w-full p-4 border-2 border-gray-200 rounded-xl text-left hover:border-orange-500 transition-colors group"
                   >
                     <div className="flex items-start gap-3">
@@ -666,7 +688,7 @@ const Cart = () => {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <p className="font-semibold text-gray-900">Pay Small Small</p>
                         <p className="text-sm text-gray-500">Pay any amount whenever you like. No fixed duration.</p>
                       </div>
@@ -675,7 +697,11 @@ const Cart = () => {
 
                   {/* Buy Now, Once Option */}
                   <button
-                    onClick={() => setPaymentType('outright')}
+                    onClick={() => {
+                      setPaymentType('outright');
+                      setTermsAccepted(false);
+                      setPriceChangeNoticeChecked(false);
+                    }}
                     className="w-full p-4 border-2 border-gray-200 rounded-xl text-left hover:border-orange-500 transition-colors group"
                   >
                     <div className="flex items-start gap-3">
@@ -684,7 +710,7 @@ const Cart = () => {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <p className="font-semibold text-gray-900">Buy Now, Once</p>
                         <p className="text-sm text-gray-500">Pay full amount now: ₦{totalAmount?.toLocaleString()}</p>
                       </div>
@@ -696,7 +722,13 @@ const Cart = () => {
               {/* Back button for when payment type is selected */}
               {paymentType && (
                 <button
-                  onClick={() => { setPaymentType(''); setFirstPaymentAmount(''); setDeliveryMethod(''); setTermsAccepted(false); }}
+                  onClick={() => {
+                    setPaymentType('');
+                    setFirstPaymentAmount('');
+                    setDeliveryMethod('');
+                    setTermsAccepted(false);
+                    setPriceChangeNoticeChecked(false);
+                  }}
                   className="flex items-center gap-1 text-sm text-orange-500 hover:text-orange-600 mb-4"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -859,7 +891,7 @@ const Cart = () => {
                 <div className="mb-4">
                   <div className="flex items-start gap-2">
                     <button
-                      onClick={() => setTermsAccepted((accepted) => !accepted)}
+                      onClick={handleCheckoutConsentClick}
                       className={`w-6 h-6 rounded flex items-center justify-center border-[3px] transition-colors ${
                         termsAccepted ? 'bg-orange-500 border-orange-500' : 'border-orange-500 bg-orange-50 hover:bg-orange-100'
                       }`}
@@ -909,7 +941,7 @@ const Cart = () => {
         </div>
       )}
 
-      {processingPayment && !showPaymentSourceModal && !showTermsModal && (
+      {processingPayment && !showPaymentSourceModal && !showTermsModal && !showPriceChangeNoticeModal && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-xs rounded-2xl bg-white p-6 text-center shadow-2xl">
             <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-orange-100 border-t-orange-500"></div>
@@ -924,8 +956,8 @@ const Cart = () => {
       )}
 
       {showPaymentSourceModal && pendingPaymentData && (
-        <div className="fixed inset-0 z-[55] flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+        <div className="fixed inset-0 z-[55] flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-10 sm:items-center sm:pt-4">
+          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-lg font-bold text-gray-900">
@@ -993,6 +1025,69 @@ const Cart = () => {
         </div>
       )}
 
+      {showPriceChangeNoticeModal && (
+        <div className="fixed inset-0 z-[65] flex items-start justify-center overflow-y-auto bg-slate-950/70 p-4 pt-10 backdrop-blur-sm sm:items-center sm:pt-4">
+          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl bg-white shadow-2xl">
+            <div className="bg-gradient-to-br from-amber-500 via-orange-500 to-emerald-600 px-5 py-5 text-white">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-wide text-white/80">Pay Small Small</p>
+                  <h3 className="mt-1 text-2xl font-black">Price Change Notice</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPriceChangeNoticeModal(false);
+                    setPriceChangeNoticeChecked(false);
+                  }}
+                  className="rounded-full bg-white/15 px-3 py-1.5 text-xs font-black text-white hover:bg-white/25"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+            <div className="p-5">
+              <p className="text-sm leading-6 text-slate-600">
+                I understand that the product price may increase or decrease before I complete payment due to market
+                conditions. <strong className="font-black text-slate-950">All payments made will remain fully credited to my account</strong>,
+                and the final product price will apply when I complete payment.
+              </p>
+
+              <button
+                type="button"
+                onClick={() => setPriceChangeNoticeChecked((checked) => !checked)}
+                className="mt-5 flex w-full items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left"
+              >
+                <span className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-[3px] ${
+                  priceChangeNoticeChecked ? 'border-orange-500 bg-orange-500' : 'border-orange-400 bg-white'
+                }`}>
+                  {priceChangeNoticeChecked && (
+                    <svg className="h-4 w-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </span>
+                <span className="text-sm font-bold leading-6 text-amber-900">
+                  I have read and accept this price change notice.
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setTermsAccepted(true);
+                  setShowPriceChangeNoticeModal(false);
+                }}
+                disabled={!priceChangeNoticeChecked}
+                className="mt-4 w-full rounded-full bg-orange-500 py-3 text-sm font-black text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
+              >
+                Accept Notice
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Terms Modal */}
       {showTermsModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
@@ -1053,13 +1148,15 @@ const Cart = () => {
             <div className="p-4 border-t">
               <button
                 onClick={() => {
-                  setProcessingPayment(true);
                   setPaymentError('');
-                  setTermsAccepted(true);
-                  setShowTermsModal(false);
                   if (paymentType === 'installment') {
-                    handleInstallmentPayment();
+                    setShowTermsModal(false);
+                    setPriceChangeNoticeChecked(false);
+                    setShowPriceChangeNoticeModal(true);
                   } else if (paymentType === 'outright') {
+                    setProcessingPayment(true);
+                    setTermsAccepted(true);
+                    setShowTermsModal(false);
                     handleOutrightPayment();
                   }
                 }}
@@ -1075,8 +1172,8 @@ const Cart = () => {
 
       {/* Auth Modal (Login/Registration) */}
       {showAuthModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-orange-50 rounded-xl max-w-md w-full overflow-hidden my-4">
+        <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 pt-10 overflow-y-auto sm:items-center sm:pt-4">
+          <div className="bg-orange-50 rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto my-4">
             {/* Header */}
             <div className="p-4 flex justify-between items-center">
               <button

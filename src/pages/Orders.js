@@ -520,6 +520,7 @@ const Orders = () => {
 
   const [depositAmount, setDepositAmount] = useState('');
   const [payingItemId, setPayingItemId] = useState('');
+  const [updatingQuantityItemId, setUpdatingQuantityItemId] = useState('');
   const [pageError, setPageError] = useState('');
   const [pageMessage, setPageMessage] = useState('');
   const [showMobileAlert, setShowMobileAlert] = useState(false);
@@ -804,6 +805,31 @@ const Orders = () => {
       setPageError(error.response?.data?.message || 'Failed to pay for product from wallet');
     } finally {
       setPayingItemId('');
+    }
+  };
+
+  const handleOrderItemQuantityChange = async (item, nextQuantity) => {
+    if (!activeOrder?.orderNumber || !item?._id) return;
+    const quantity = Math.max(1, Number(nextQuantity) || 1);
+    if (quantity === Number(item.quantity || 1)) return;
+
+    setUpdatingQuantityItemId(item._id);
+    setPageError('');
+    setPageMessage('');
+
+    try {
+      await axios.put(
+        `${API_URL}/api/ecommerce/orders/number/${activeOrder.orderNumber}/items/${item._id}/quantity`,
+        { quantity },
+        { headers: getAuthHeader() }
+      );
+      dispatch(fetchOrdersRequest());
+      dispatch(fetchWalletRequest());
+      setPageMessage(`Quantity updated for ${item.productName}.`);
+    } catch (error) {
+      setPageError(error.response?.data?.message || 'Failed to update product quantity');
+    } finally {
+      setUpdatingQuantityItemId('');
     }
   };
 
@@ -1134,6 +1160,11 @@ const Orders = () => {
                 ) : activeItems.map((item) => {
                   const due = Math.max(0, Number(item.subtotal || 0) - Number(item.paidAmount || 0));
                   const fulfillmentDisplay = getItemFulfillmentDisplay(item);
+                  const quantityChangeDisabled = (
+                    updatingQuantityItemId === item._id ||
+                    lockedOrderStatuses.has(activeOrder.status) ||
+                    ['delivered', 'completed'].includes(item.fulfillmentStatus || 'pending')
+                  );
                   return (
                     <tr key={item._id}>
                       <td className="whitespace-nowrap px-5 py-4">{formatDate(item.addedAt || activeOrder.createdAt)}</td>
@@ -1155,7 +1186,35 @@ const Orders = () => {
                           </span>
                         )}
                       </td>
-                      <td className="px-5 py-4">{item.quantity}</td>
+                      <td className="px-5 py-4">
+                        <div className="inline-flex items-center rounded-full border border-orange-200 bg-orange-50">
+                          <button
+                            type="button"
+                            onClick={() => handleOrderItemQuantityChange(item, Number(item.quantity || 1) - 1)}
+                            disabled={quantityChangeDisabled || Number(item.quantity || 1) <= 1}
+                            className="flex h-8 w-8 items-center justify-center rounded-full text-orange-700 hover:bg-orange-100 disabled:cursor-not-allowed disabled:text-slate-300"
+                            aria-label={`Reduce quantity for ${item.productName}`}
+                          >
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 12h14" />
+                            </svg>
+                          </button>
+                          <span className="min-w-9 px-2 text-center text-sm font-black text-slate-950">
+                            {updatingQuantityItemId === item._id ? '...' : Number(item.quantity || 1).toLocaleString()}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleOrderItemQuantityChange(item, Number(item.quantity || 1) + 1)}
+                            disabled={quantityChangeDisabled}
+                            className="flex h-8 w-8 items-center justify-center rounded-full text-orange-700 hover:bg-orange-100 disabled:cursor-not-allowed disabled:text-slate-300"
+                            aria-label={`Increase quantity for ${item.productName}`}
+                          >
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 5v14m-7-7h14" />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
                       <td className="whitespace-nowrap px-5 py-4 font-bold text-slate-900">{formatCurrency(item.subtotal)}</td>
                       <td className="px-5 py-4">
                         <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${getStatusPill(fulfillmentDisplay.status)}`}>
@@ -1205,6 +1264,11 @@ const Orders = () => {
               const due = Math.max(0, Number(item.subtotal || 0) - Number(item.paidAmount || 0));
               const fulfillmentDisplay = getItemFulfillmentDisplay(item);
               const cardStyle = getMobileProductCardStyle(index);
+              const quantityChangeDisabled = (
+                updatingQuantityItemId === item._id ||
+                lockedOrderStatuses.has(activeOrder.status) ||
+                ['delivered', 'completed'].includes(item.fulfillmentStatus || 'pending')
+              );
               return (
                 <div key={item._id} className={`rounded-xl border p-2 shadow-sm sm:rounded-2xl sm:p-4 ${cardStyle}`}>
                   <div className="flex items-start justify-between gap-2 sm:gap-3">
@@ -1223,6 +1287,36 @@ const Orders = () => {
                     </span>
                   </div>
                   <p className="mt-1.5 text-[10px] leading-4 text-slate-500 sm:mt-3 sm:text-xs">{activeOrder.shippingAddress || 'No shipping address'}</p>
+                  <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-white/75 px-2.5 py-2 sm:mt-3">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500 sm:text-xs">Quantity</span>
+                    <div className="inline-flex items-center rounded-full border border-orange-200 bg-orange-50">
+                      <button
+                        type="button"
+                        onClick={() => handleOrderItemQuantityChange(item, Number(item.quantity || 1) - 1)}
+                        disabled={quantityChangeDisabled || Number(item.quantity || 1) <= 1}
+                        className="flex h-8 w-8 items-center justify-center rounded-full text-orange-700 disabled:cursor-not-allowed disabled:text-slate-300"
+                        aria-label={`Reduce quantity for ${item.productName}`}
+                      >
+                        <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 12h14" />
+                        </svg>
+                      </button>
+                      <span className="min-w-8 px-1.5 text-center text-xs font-black text-slate-950">
+                        {updatingQuantityItemId === item._id ? '...' : Number(item.quantity || 1).toLocaleString()}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleOrderItemQuantityChange(item, Number(item.quantity || 1) + 1)}
+                        disabled={quantityChangeDisabled}
+                        className="flex h-8 w-8 items-center justify-center rounded-full text-orange-700 disabled:cursor-not-allowed disabled:text-slate-300"
+                        aria-label={`Increase quantity for ${item.productName}`}
+                      >
+                        <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 5v14m-7-7h14" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
                   <div className="mt-2 flex gap-1.5 sm:mt-4 sm:gap-2">
                     <button
                       type="button"
@@ -1582,12 +1676,12 @@ const Orders = () => {
       )}
 
       {replaceItem && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 p-3 sm:p-5">
-          <div className="mx-auto flex h-full max-w-6xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
-            <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
-              <div>
+        <div className="fixed inset-0 z-50 bg-slate-950/60 p-2 sm:p-5">
+          <div className="mx-auto flex h-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:rounded-3xl">
+            <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-5">
+              <div className="min-w-0">
                 <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Change Product</p>
-                <h2 className="mt-1 text-xl font-bold text-slate-950">{replaceItem.productName}</h2>
+                <h2 className="mt-1 break-words text-lg font-bold text-slate-950 sm:text-xl">{replaceItem.productName}</h2>
                 <p className="mt-1 text-sm text-slate-500">
                   Select another available product. Quantity will remain {Number(replaceItem.quantity || 1).toLocaleString()}.
                 </p>
@@ -1596,7 +1690,7 @@ const Orders = () => {
                 type="button"
                 onClick={closeReplaceModal}
                 disabled={replaceLoading}
-                className="self-start rounded-full bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-200 disabled:cursor-not-allowed"
+                className="self-start rounded-full bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-200 disabled:cursor-not-allowed sm:shrink-0"
               >
                 Close
               </button>
@@ -1615,7 +1709,7 @@ const Orders = () => {
                   <button
                     type="button"
                     onClick={() => dispatch(fetchProductsRequest({ search: replacementSearch }))}
-                    className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700"
+                    className="w-full rounded-2xl bg-slate-950 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700 sm:w-auto"
                   >
                     Search
                   </button>
@@ -1623,14 +1717,17 @@ const Orders = () => {
 
                 {productsLoading ? (
                   <div className="flex justify-center py-16">
-                    <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-emerald-600"></div>
+                    <div className="text-center">
+                      <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-emerald-600"></div>
+                      <p className="mt-3 text-sm font-semibold text-slate-500">Loading products...</p>
+                    </div>
                   </div>
                 ) : filteredReplacementProducts.length === 0 ? (
-                  <div className="rounded-3xl border border-dashed border-slate-200 py-16 text-center text-sm text-slate-500">
-                    No available product found.
+                  <div className="rounded-3xl border border-dashed border-slate-200 px-4 py-16 text-center text-sm text-slate-500">
+                    No available replacement product found.
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                  <div className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
                     {filteredReplacementProducts.map((product) => {
                       const selected = product._id === replacementProductId;
                       return (

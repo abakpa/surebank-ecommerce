@@ -21,7 +21,10 @@ function* fetchProductsSaga(action) {
     const { append, ...params } = action.payload || {};
     const queryString = new URLSearchParams(params).toString();
     const response = yield call(axios.get, `${API_URL}/api/products?${queryString}`);
-    yield put(fetchProductsSuccess({ ...response.data, append }));
+    const payload = Array.isArray(response.data)
+      ? { products: response.data, append }
+      : { ...response.data, append };
+    yield put(fetchProductsSuccess(payload));
   } catch (error) {
     yield put(fetchProductsFailure(error.response?.data?.message || 'Failed to fetch products'));
   }
